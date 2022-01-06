@@ -81,5 +81,6 @@ def init_vocab():
 
 vocab = init_vocab()
 padding_idx = vocab('<pad>')
+end_idx = vocab('<end>')
 padding_len = 60
 vocab_size = len(vocab)

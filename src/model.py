@@ -1,6 +1,7 @@
 import einops
 import torch
 import torch.nn as nn
+from torch import Tensor
 from torch.nn.utils.rnn import pack_padded_sequence
 from torchvision.models import resnet50
 
@@ -8,27 +9,38 @@ from src.vocab import padding_idx, vocab_size, padding_len
 
 
 class ImageTrans(nn.Module):
-    def __init__(self, d_model=256, img_text_granularity=5):
+    def __init__(self, d_model=256, tgt_len=5):
         super(ImageTrans, self).__init__()
-        self.transformer = nn.Transformer(d_model=d_model, batch_first=True)
-        self.transformer_param = nn.Parameter(torch.zeros(img_text_granularity, d_model))
-        self.positional = nn.Parameter(torch.zeros(49, d_model))
+        self.transformer = nn.Transformer(
+            d_model=d_model,
+            batch_first=True
+        )
+        self.transformer_param = nn.Parameter(torch.zeros(tgt_len, d_model))
+        self.positional = nn.Parameter(torch.zeros(ResNetFeature.sequence_length, d_model))
 
     def forward(self, x):
         x = x + self.positional
-        param_expand = einops.repeat(self.transformer_param, 'l_per_img model -> b l_per_img model', b=x.shape[0])
-        x = self.transformer(x, param_expand)
+        tgt = self.transformer_param
+        tgt_e = einops.repeat(tgt, 'l_per_img model -> batch l_per_img model', batch=x.shape[0])
+        x = self.transformer(x, tgt_e)
         return x
 
 
-class ResNet50Feature(nn.Module):
-    def __init__(self):
-        super(ResNet50Feature, self).__init__()
-        self.resnet = nn.Sequential(*list(resnet50(pretrained=True).children())[:-2])
+class ResNetFeature(nn.Module):
+    sequence_length = 49
+    sequence_dim = 2048
+
+    def __init__(self, pretrained=True):
+        super(ResNetFeature, self).__init__()
+        self.resnet = nn.Sequential(
+            *list(resnet50(pretrained=pretrained).children())[:-2]
+        )
 
     def forward(self, x):
         x = self.resnet(x)
         x = einops.rearrange(x, 'b c h w -> b (h w) c')
+        assert x.shape[1] == ResNetFeature.sequence_length \
+               and x.shape[2] == ResNetFeature.sequence_dim, 'ResNet feature shape error'
         return x
 
 
@@ -40,11 +52,11 @@ class TextGRU(nn.Module):
                           dropout=0, bidirectional=True)
         self.positional = nn.Parameter(torch.zeros(padding_len, text_embed_dim))
 
-    def forward(self, x):
-        lengths = ((x == 2).nonzero()[:, 1] + 1).tolist()
-        x = self.embed(x)
-        x = x + self.positional
+    def forward(self, x: Tensor):
+        assert padding_idx == 0, 'count_nonzero assumes padding_idx is 0.'
+        lengths = x.count_nonzero(dim=-1).tolist()
+        x = self.embed(x) + self.positional
         x = pack_padded_sequence(x, lengths, batch_first=True, enforce_sorted=False)
         _, x = self.gru(x)
-        x = einops.rearrange(x, 'h b l -> b (h l)')
+        x = einops.rearrange(x, 'hidden batch d_model -> batch (hidden d_model)')
         return x

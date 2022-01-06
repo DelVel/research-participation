@@ -9,7 +9,7 @@ from torchvision.datasets import CocoCaptions
 from torchvision.transforms import Compose, ToTensor, Lambda, RandomCrop
 
 from src.loss import minimize_maximum_cosine
-from src.model import ResNet50Feature, TextGRU, ImageTrans
+from src.model import ResNetFeature, TextGRU, ImageTrans
 from src.vocab import vocab, padding_len, padding_idx
 
 
@@ -20,8 +20,8 @@ class COCOSystem(pl.LightningModule):
         self.save_hyperparameters()
         self.caption_per_img = 5
 
-        self.resnet = ResNet50Feature()
-        self.linear = torch.nn.Linear(2048, latent_dim)
+        self.resnet = ResNetFeature()
+        self.linear = torch.nn.Linear(ResNetFeature.sequence_dim, latent_dim)
         self.image_trans = ImageTrans(latent_dim)
 
         self.gru = TextGRU(text_embed_dim, latent_dim // 2)
