@@ -6,12 +6,11 @@ import nltk
 from pycocotools.coco import COCO
 from tqdm import tqdm
 
-vocab_pkl_path = './data/vocab.pkl'
+from src.dataset import train_caption, val_caption
 
 
 class Vocabulary:
     """Simple vocabulary wrapper."""
-
     def __init__(self):
         self.word2idx = {}
         self.idx2word = {}
@@ -25,7 +24,7 @@ class Vocabulary:
 
     def __call__(self, word):
         if word not in self.word2idx:
-            return self.word2idx['<unk>']
+            return self.word2idx[unk_token]
         return self.word2idx[word]
 
     def __len__(self):
@@ -48,10 +47,10 @@ def build_vocab(json_list, threshold_):
 
     # Create a vocab wrapper and add some special tokens.
     vocab_ = Vocabulary()
-    vocab_.add_word('<pad>')
-    vocab_.add_word('<start>')
-    vocab_.add_word('<end>')
-    vocab_.add_word('<unk>')
+    vocab_.add_word(pad_token)
+    vocab_.add_word(start_token)
+    vocab_.add_word(end_token)
+    vocab_.add_word(unk_token)
 
     # Add the words to the vocabulary.
     for i, word in enumerate(words):
@@ -60,8 +59,7 @@ def build_vocab(json_list, threshold_):
 
 
 def vocab_from_annotations():
-    annotations_root = 'D:/dataset/coco2014/annotations_trainval2014/annotations'
-    json_list = [f'{annotations_root}/captions_train2014.json', f'{annotations_root}/captions_val2014.json']
+    json_list = [train_caption, val_caption]
     vocab_ = build_vocab(json_list=json_list, threshold_=4)
     print(f"Total vocabulary size: {len(vocab_)}")
     with open(vocab_pkl_path, 'wb') as f:
@@ -71,7 +69,6 @@ def vocab_from_annotations():
 
 
 def init_vocab():
-    global vocab
     if os.path.exists(vocab_pkl_path):
         with open(vocab_pkl_path, 'rb') as f:
             return dill.load(f)
@@ -79,8 +76,14 @@ def init_vocab():
         return vocab_from_annotations()
 
 
+pad_token = '<pad>'
+start_token = '<start>'
+end_token = '<end>'
+unk_token = '<unk>'
+
+vocab_pkl_path = './data/vocab.pkl'
 vocab = init_vocab()
-padding_idx = vocab('<pad>')
-end_idx = vocab('<end>')
+padding_idx = vocab(pad_token)
+end_idx = vocab(end_token)
 padding_len = 60
 vocab_size = len(vocab)

@@ -6,7 +6,7 @@ from src.module import COCOSystem
 def main():
     trainer = pl.Trainer(
         gpus=1,
-        auto_scale_batch_size="binsearch"
+        auto_scale_batch_size="power"
     )
     model = COCOSystem(
         latent_dim=128,
