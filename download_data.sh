@@ -13,9 +13,9 @@ cd "$data_dir" || {
   echo "Failed to cd $data_dir"
   exit 1
 }
-unzip -d train2014 train2014.zip
-unzip -d val2014 val2014.zip
-unzip -d test2014 test2014.zip
+unzip train2014.zip
+unzip val2014.zip
+unzip test2014.zip
 unzip -d annotations_trainval2014 annotations_trainval2014.zip
 unzip -d image_info_test2014 image_info_test2014.zip
 rm ./*.zip
