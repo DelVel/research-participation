@@ -11,6 +11,7 @@ from src.dataset import train_caption, val_caption
 
 class Vocabulary:
     """Simple vocabulary wrapper."""
+
     def __init__(self):
         self.word2idx = {}
         self.idx2word = {}
@@ -62,6 +63,7 @@ def vocab_from_annotations():
     json_list = [train_caption, val_caption]
     vocab_ = build_vocab(json_list=json_list, threshold_=4)
     print(f"Total vocabulary size: {len(vocab_)}")
+    os.makedirs(os.path.split(vocab_pkl_path)[0], exist_ok=True)
     with open(vocab_pkl_path, 'wb') as f:
         dill.dump(vocab_, f)
     print(f"Saved the vocabulary wrapper to '{vocab_pkl_path}'")
