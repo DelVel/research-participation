@@ -1,20 +1,32 @@
+from argparse import ArgumentParser
+
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks import EarlyStopping
 
 from src.module import COCOSystem
 
 
 def main():
-    trainer = pl.Trainer(
-        gpus=1,
-        auto_scale_batch_size="power"
+    args = init_args()
+    trainer = pl.Trainer.from_argparse_args(
+        args,
+        callbacks=[EarlyStopping(monitor="val_loss")]
     )
     model = COCOSystem(
-        latent_dim=128,
-        text_embed_dim=64,
-        batch_size=4,
+        latent_dim=args.latent_dim,
+        text_embed_dim=args.text_embed_dim,
+        batch_size=args.batch_size,
+        pretrained_resnet=args.pretrained_resnet,
     )
-    # trainer.tune(model)
     trainer.fit(model)
+
+
+def init_args():
+    parser = ArgumentParser(description='COCO System')
+    parser = pl.Trainer.add_argparse_args(parser)
+    parser = COCOSystem.add_model_specific_args(parser)
+    args = parser.parse_args()
+    return args
 
 
 if __name__ == '__main__':

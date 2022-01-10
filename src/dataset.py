@@ -1,4 +1,4 @@
-dataset_root = 'D:/dataset/coco2014'
+dataset_root = './dataset/coco2014'
 train_val_annotations_root = f'{dataset_root}/annotations_trainval2014/annotations'
 train_caption = f'{train_val_annotations_root}/captions_train2014.json'
 val_caption = f'{train_val_annotations_root}/captions_val2014.json'

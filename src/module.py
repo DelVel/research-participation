@@ -15,15 +15,25 @@ from src.vocab import vocab, padding_len, padding_idx, start_token, end_token
 
 
 class COCOSystem(pl.LightningModule):
-    def __init__(self, latent_dim, text_embed_dim, batch_size):
+    @staticmethod
+    def add_model_specific_args(parent_parser):
+        parser = parent_parser.add_argument_group("COCOSystem")
+        parser.add_argument('--latent_dim', type=int, default=256)
+        parser.add_argument('--text_embed_dim', type=int, default=256)
+        parser.add_argument('--batch_size', type=int, default=32)
+        parser = parent_parser.add_argument_group("ResNetConfig")
+        parser.add_argument('--pretrained_resnet', type=bool, default=True)
+        return parent_parser
+
+    def __init__(self, latent_dim, text_embed_dim, batch_size, pretrained_resnet):
         super().__init__()
         assert latent_dim % 2 == 0, "latent_dim must be even"
         assert batch_size > 0, "batch_size must be positive"
         self.save_hyperparameters()
-        self.caption_per_img = 5
 
-        self.resnet = ResNetFeature()
-        self.linear = torch.nn.Linear(ResNetFeature.sequence_dim, latent_dim)
+        self.resnet = ResNetFeature(pretrained_resnet)
+        self.linear = torch.nn.Identity() if ResNetFeature.sequence_dim == latent_dim else torch.nn.Linear(
+            ResNetFeature.sequence_dim, latent_dim)
         self.image_trans = ImageTrans(latent_dim)
 
         self.gru = TextGRU(text_embed_dim, latent_dim // 2)
@@ -37,9 +47,10 @@ class COCOSystem(pl.LightningModule):
         img = self.linear(img)
         img = self.image_trans(img)
 
+        g_dim = text.shape[1]
         text = einops.rearrange(text, 'b g l -> (b g) l')
         text = self.gru(text)
-        text = einops.rearrange(text, '(b g) l -> b g l', g=self.caption_per_img)
+        text = einops.rearrange(text, '(b g) l -> b g l', g=g_dim)
 
         loss = self.loss(img, text)
         self.log("loss", loss)
