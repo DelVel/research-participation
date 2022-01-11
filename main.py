@@ -18,7 +18,8 @@ def main():
         batch_size=args.batch_size,
         pretrained_resnet=args.pretrained_resnet,
         num_worker=args.num_worker,
-        persistent_workers=args.persistent_workers
+        persistent_workers=args.persistent_workers,
+        pin_memory=args.pin_memory,
     )
     trainer.fit(model)
 
