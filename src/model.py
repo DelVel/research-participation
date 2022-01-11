@@ -16,12 +16,14 @@ class ImageTrans(nn.Module):
             batch_first=True
         )
         self.transformer_param = nn.Parameter(torch.zeros(tgt_len, d_model))
-        self.positional = nn.Parameter(torch.zeros(ResNetFeature.sequence_length, d_model))
+        self.positional = nn.Parameter(
+            torch.zeros(ResNetFeature.sequence_length, d_model))
 
     def forward(self, x):
         x = x + self.positional
         tgt = self.transformer_param
-        tgt_e = einops.repeat(tgt, 'l_per_img model -> batch l_per_img model', batch=x.shape[0])
+        tgt_e = einops.repeat(tgt, 'l_per_img model -> batch l_per_img model',
+                              batch=x.shape[0])
         x = self.transformer(x, tgt_e)
         return x
 
@@ -40,23 +42,29 @@ class ResNetFeature(nn.Module):
         x = self.resnet(x)
         x = einops.rearrange(x, 'b c h w -> b (h w) c')
         assert x.shape[1] == ResNetFeature.sequence_length \
-               and x.shape[2] == ResNetFeature.sequence_dim, 'ResNet feature shape error'
+               and x.shape[2] == \
+               ResNetFeature.sequence_dim, 'ResNet feature shape error'
         return x
 
 
 class TextGRU(nn.Module):
     def __init__(self, text_embed_dim=128, hidden_size=128):
         super(TextGRU, self).__init__()
-        self.embed = nn.Embedding(vocab_size, text_embed_dim, padding_idx=padding_idx)
-        self.gru = nn.GRU(input_size=text_embed_dim, hidden_size=hidden_size, num_layers=1, bias=True, batch_first=True,
+        self.embed = nn.Embedding(vocab_size, text_embed_dim,
+                                  padding_idx=padding_idx)
+        self.gru = nn.GRU(input_size=text_embed_dim, hidden_size=hidden_size,
+                          num_layers=1, bias=True, batch_first=True,
                           dropout=0, bidirectional=True)
-        self.positional = nn.Parameter(torch.zeros(padding_len, text_embed_dim))
+        self.positional = nn.Parameter(
+            torch.zeros(padding_len, text_embed_dim))
 
     def forward(self, x: Tensor):
         assert padding_idx == 0, 'count_nonzero assumes padding_idx is 0.'
         lengths = x.count_nonzero(dim=-1).tolist()
         x = self.embed(x) + self.positional
-        x = pack_padded_sequence(x, lengths, batch_first=True, enforce_sorted=False)
+        x = pack_padded_sequence(x, lengths, batch_first=True,
+                                 enforce_sorted=False)
         _, x = self.gru(x)
-        x = einops.rearrange(x, 'hidden batch d_model -> batch (hidden d_model)')
+        x = einops.rearrange(x,
+                             'hidden batch d_model -> batch (hidden d_model)')
         return x

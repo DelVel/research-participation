@@ -43,7 +43,8 @@ def build_vocab(json_list, threshold_):
             tokens = nltk.tokenize.word_tokenize(caption.lower())
             counter.update(tokens)
 
-    # If the word frequency is less than 'threshold', then the word is discarded.
+    # If the word frequency is less than 'threshold',
+    # then the word is discarded.
     words = [word for word, cnt in counter.items() if cnt >= threshold_]
 
     # Create a vocab wrapper and add some special tokens.

@@ -8,8 +8,9 @@ from torch.utils.data import DataLoader
 from torchvision.datasets import CocoCaptions
 from torchvision.transforms import Compose, ToTensor, Lambda, RandomCrop
 
-from src.dataset import train_root, val_root, train_caption, val_caption, test_root
-from src.loss import minimize_maximum_cosine, similarity_criteria
+from src.dataset import train_root, val_root, train_caption, val_caption, \
+    test_root
+from src.loss import minimize_maximum_cosine
 from src.model import ResNetFeature, TextGRU, ImageTrans
 from src.vocab import vocab, padding_len, padding_idx, start_token, end_token
 
@@ -32,15 +33,17 @@ class COCOSystem(pl.LightningModule):
         return parent_parser
 
     # noinspection PyUnusedLocal
-    def __init__(self, latent_dim, text_embed_dim, batch_size, pretrained_resnet, num_worker, persistent_workers,
+    def __init__(self, latent_dim, text_embed_dim, batch_size,
+                 pretrained_resnet, num_worker, persistent_workers,
                  pin_memory):
         super().__init__()
         assert latent_dim % 2 == 0, "latent_dim must be even"
         self.save_hyperparameters()
 
         self.resnet = ResNetFeature(pretrained_resnet)
-        self.linear = torch.nn.Identity() if ResNetFeature.sequence_dim == latent_dim else torch.nn.Linear(
-            ResNetFeature.sequence_dim, latent_dim)
+        self.linear = torch.nn.Identity() \
+            if ResNetFeature.sequence_dim == latent_dim \
+            else torch.nn.Linear(ResNetFeature.sequence_dim, latent_dim)
         self.image_trans = ImageTrans(latent_dim)
 
         self.gru = TextGRU(text_embed_dim, latent_dim // 2)
@@ -89,7 +92,8 @@ class COCOSystem(pl.LightningModule):
         coco_val = CocoCaptions(
             root=root,
             annFile=ann_file,
-            transform=Compose([RandomCrop(224, pad_if_needed=True), ToTensor()]),
+            transform=Compose(
+                [RandomCrop(224, pad_if_needed=True), ToTensor()]),
             target_transform=Lambda(self.word2idx)
         )
         return DataLoader(
@@ -131,7 +135,8 @@ class COCOSystem(pl.LightningModule):
             start_end = [start_token] + tokenize + [end_token]
             idx_list = [vocab(token) for token in start_end]
             padding_count = (padding_len - len(idx_list))
-            assert padding_count >= 0, f'Exceeded maximum padding length: {len(idx_list)} > {padding_len}'
+            assert padding_count >= 0, f'Exceeded maximum padding length: ' \
+                                       f'{len(idx_list)} > {padding_len}'
             idx_list += [padding_idx] * padding_count
             tensor = torch.LongTensor(idx_list)
             tensor_list.append(tensor)

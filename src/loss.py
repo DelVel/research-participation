@@ -35,7 +35,8 @@ def cross_loss(img, text):
 
 def similarity_criteria(img, text, *, reduce='sum'):
     img_s = einops.repeat(img, 'img latent -> k img latent', k=text.shape[0])
-    text_s = einops.repeat(text, 'text latent -> text k latent', k=img.shape[0])
+    text_s = einops.repeat(text, 'text latent -> text k latent',
+                           k=img.shape[0])
     sim_mat = cosine_similarity(img_s, text_s, -1)
     max_mat = einops.reduce(sim_mat, 'text img -> text', 'max')
     res = einops.reduce(max_mat, 'text ->', reduce)
