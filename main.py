@@ -2,15 +2,19 @@ from argparse import ArgumentParser
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.plugins import DDPPlugin
 
 from src.module import COCOSystem
 
 
 def main():
     args = init_args()
+    strategy = {'strategy': DDPPlugin(
+        find_unused_parameters=False)} if args.strategy == 'ddp' else {}
     trainer = pl.Trainer.from_argparse_args(
         args,
-        callbacks=[EarlyStopping(monitor="val_loss")]
+        callbacks=[EarlyStopping(monitor="val_loss")],
+        **strategy
     )
     model = COCOSystem(
         latent_dim=args.latent_dim,
