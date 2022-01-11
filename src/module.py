@@ -9,7 +9,7 @@ from torchvision.datasets import CocoCaptions
 from torchvision.transforms import Compose, ToTensor, Lambda, RandomCrop
 
 from src.dataset import train_root, val_root, train_caption, val_caption, test_root, test_info
-from src.loss import minimize_maximum_cosine
+from src.loss import minimize_maximum_cosine, similarity_criteria
 from src.model import ResNetFeature, TextGRU, ImageTrans
 from src.vocab import vocab, padding_len, padding_idx, start_token, end_token
 
@@ -18,17 +18,22 @@ class COCOSystem(pl.LightningModule):
     @staticmethod
     def add_model_specific_args(parent_parser):
         parser = parent_parser.add_argument_group("COCOSystem")
+        parser.add_argument("--num_worker", type=int, default=4)
+
+        parser = parent_parser.add_argument_group("COCOModel")
         parser.add_argument('--latent_dim', type=int, default=256)
         parser.add_argument('--text_embed_dim', type=int, default=256)
         parser.add_argument('--batch_size', type=int, default=32)
+
         parser = parent_parser.add_argument_group("ResNetConfig")
         parser.add_argument('--pretrained_resnet', type=bool, default=True)
         return parent_parser
 
-    def __init__(self, latent_dim, text_embed_dim, batch_size, pretrained_resnet):
+    def __init__(self, latent_dim, text_embed_dim, batch_size, pretrained_resnet, num_worker):
         super().__init__()
         assert latent_dim % 2 == 0, "latent_dim must be even"
-        assert batch_size > 0, "batch_size must be positive"
+        assert batch_size > 0
+        assert num_worker >= 0
         self.save_hyperparameters()
 
         self.resnet = ResNetFeature(pretrained_resnet)
@@ -40,21 +45,45 @@ class COCOSystem(pl.LightningModule):
 
         self.loss = minimize_maximum_cosine
 
-    def training_step(self, batch, batch_idx):
-        img, text = batch
-
+    def forward(self, img, text):
         img = self.resnet(img)
         img = self.linear(img)
         img = self.image_trans(img)
-
         g_dim = text.shape[1]
         text = einops.rearrange(text, 'b g l -> (b g) l')
         text = self.gru(text)
         text = einops.rearrange(text, '(b g) l -> b g l', g=g_dim)
+        return img, text
 
+    def training_step(self, batch, batch_idx):
+        img, text = batch
+        img, text = self.forward(img, text)
         loss = self.loss(img, text)
         self.log("loss", loss)
         return loss
+
+    def validation_step(self, batch, batch_idx):
+        img, text = batch
+        img, text = self.forward(img, text)
+        loss = self.loss(img, text)
+        self.log("val_loss", loss)
+        return img, text
+
+    def validation_epoch_end(self, outputs):
+        img_stack = torch.cat([x[0] for x in outputs])
+        text_stack = torch.cat([x[1] for x in outputs])
+        score = 0
+        for i in range(img_stack.shape[0]):
+            img = img_stack[i]
+            similarities = []
+            for j in range(text_stack.shape[0]):
+                text = text_stack[j]
+                similarity = similarity_criteria(img, text, reduce='max')
+                similarities.append(similarity)
+            similarities = torch.tensor(similarities)
+            score += (similarities.topk(1)[1] == i).any().item()
+        ra1 = score / img_stack.shape[0]
+        self.log("R@1", ra1)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
@@ -67,7 +96,8 @@ class COCOSystem(pl.LightningModule):
             transform=Compose([RandomCrop(224, pad_if_needed=True), ToTensor()]),
             target_transform=Lambda(self.word2idx)
         )
-        return DataLoader(coco_train, batch_size=self.hparams.batch_size, shuffle=True, num_workers=8)
+        return DataLoader(coco_train, batch_size=self.hparams.batch_size, shuffle=True,
+                          num_workers=self.hparams.num_worker)
 
     def val_dataloader(self):
         coco_val = CocoCaptions(
@@ -76,7 +106,7 @@ class COCOSystem(pl.LightningModule):
             transform=Compose([RandomCrop(224, pad_if_needed=True), ToTensor()]),
             target_transform=Lambda(self.word2idx)
         )
-        return DataLoader(coco_val, batch_size=self.hparams.batch_size, shuffle=True, num_workers=8)
+        return DataLoader(coco_val, batch_size=self.hparams.batch_size, num_workers=self.hparams.num_worker)
 
     def test_dataloader(self):
         coco_test = CocoCaptions(
@@ -85,7 +115,7 @@ class COCOSystem(pl.LightningModule):
             transform=Compose([RandomCrop(224, pad_if_needed=True), ToTensor()]),
             target_transform=Lambda(self.word2idx)
         )
-        return DataLoader(coco_test, batch_size=self.hparams.batch_size, shuffle=True, num_workers=8)
+        return DataLoader(coco_test, batch_size=self.hparams.batch_size, num_workers=self.hparams.num_worker)
 
     def predict_dataloader(self):
         # Intentionally empty; No prediction for this model

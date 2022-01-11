@@ -10,13 +10,14 @@ def main():
     args = init_args()
     trainer = pl.Trainer.from_argparse_args(
         args,
-        callbacks=[EarlyStopping(monitor="val_loss")]
+        callbacks=[EarlyStopping(monitor="R@1")]
     )
     model = COCOSystem(
         latent_dim=args.latent_dim,
         text_embed_dim=args.text_embed_dim,
         batch_size=args.batch_size,
         pretrained_resnet=args.pretrained_resnet,
+        num_worker=args.num_worker
     )
     trainer.fit(model)
 
