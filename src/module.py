@@ -19,6 +19,7 @@ class COCOSystem(pl.LightningModule):
     def add_model_specific_args(parent_parser):
         parser = parent_parser.add_argument_group("COCOSystem")
         parser.add_argument("--num_worker", type=int, default=4)
+        parser.add_argument("--persistent_workers", type=bool, default=False)
 
         parser = parent_parser.add_argument_group("COCOModel")
         parser.add_argument('--latent_dim', type=int, default=256)
@@ -29,7 +30,7 @@ class COCOSystem(pl.LightningModule):
         parser.add_argument('--pretrained_resnet', type=bool, default=True)
         return parent_parser
 
-    def __init__(self, latent_dim, text_embed_dim, batch_size, pretrained_resnet, num_worker):
+    def __init__(self, latent_dim, text_embed_dim, batch_size, pretrained_resnet, num_worker, persistent_workers):
         super().__init__()
         assert latent_dim % 2 == 0, "latent_dim must be even"
         assert batch_size > 0
@@ -97,7 +98,7 @@ class COCOSystem(pl.LightningModule):
             target_transform=Lambda(self.word2idx)
         )
         return DataLoader(coco_train, batch_size=self.hparams.batch_size, shuffle=True,
-                          num_workers=self.hparams.num_worker)
+                          num_workers=self.hparams.num_worker, persistent_workers=self.hparams.persistent_workers)
 
     def val_dataloader(self):
         coco_val = CocoCaptions(
@@ -106,7 +107,8 @@ class COCOSystem(pl.LightningModule):
             transform=Compose([RandomCrop(224, pad_if_needed=True), ToTensor()]),
             target_transform=Lambda(self.word2idx)
         )
-        return DataLoader(coco_val, batch_size=self.hparams.batch_size, num_workers=self.hparams.num_worker)
+        return DataLoader(coco_val, batch_size=self.hparams.batch_size, num_workers=self.hparams.num_worker,
+                          persistent_workers=self.hparams.persistent_workers)
 
     def test_dataloader(self):
         coco_test = CocoCaptions(
@@ -115,7 +117,8 @@ class COCOSystem(pl.LightningModule):
             transform=Compose([RandomCrop(224, pad_if_needed=True), ToTensor()]),
             target_transform=Lambda(self.word2idx)
         )
-        return DataLoader(coco_test, batch_size=self.hparams.batch_size, num_workers=self.hparams.num_worker)
+        return DataLoader(coco_test, batch_size=self.hparams.batch_size, num_workers=self.hparams.num_worker,
+                          persistent_workers=self.hparams.persistent_workers)
 
     def predict_dataloader(self):
         # Intentionally empty; No prediction for this model

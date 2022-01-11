@@ -17,7 +17,8 @@ def main():
         text_embed_dim=args.text_embed_dim,
         batch_size=args.batch_size,
         pretrained_resnet=args.pretrained_resnet,
-        num_worker=args.num_worker
+        num_worker=args.num_worker,
+        persistent_workers=args.persistent_workers
     )
     trainer.fit(model)
 
