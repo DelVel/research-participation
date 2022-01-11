@@ -71,22 +71,6 @@ class COCOSystem(pl.LightningModule):
         self.log("val_loss", loss)
         return img, text
 
-    def validation_epoch_end(self, outputs):
-        img_stack = torch.cat([x[0] for x in outputs])
-        text_stack = torch.cat([x[1] for x in outputs])
-        score = 0
-        for i in range(img_stack.shape[0]):
-            img = img_stack[i]
-            similarities = []
-            for j in range(text_stack.shape[0]):
-                text = text_stack[j]
-                similarity = similarity_criteria(img, text, reduce='max')
-                similarities.append(similarity)
-            similarities = torch.tensor(similarities)
-            score += (similarities.topk(1)[1] == i).any().item()
-        ra1 = score / img_stack.shape[0]
-        self.log("R@1", ra1)
-
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
         return optimizer

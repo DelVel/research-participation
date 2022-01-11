@@ -10,7 +10,7 @@ def main():
     args = init_args()
     trainer = pl.Trainer.from_argparse_args(
         args,
-        callbacks=[EarlyStopping(monitor="R@1")]
+        callbacks=[EarlyStopping(monitor="val_loss")]
     )
     model = COCOSystem(
         latent_dim=args.latent_dim,
