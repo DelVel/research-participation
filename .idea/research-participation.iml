@@ -6,6 +6,8 @@
       <excludeFolder url="file://$MODULE_DIR$/lightning_logs" />
       <excludeFolder url="file://$MODULE_DIR$/.idea/sonarlint/issuestore" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
+      <excludeFolder url="file://$MODULE_DIR$/coco-system" />
+      <excludeFolder url="file://$MODULE_DIR$/wandb" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.9 (research-participation)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

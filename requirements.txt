@@ -5,3 +5,4 @@ dill~=0.3.4
 nltk~=3.6.7
 pycocotools~=2.0.3
 tqdm~=4.62.3
+wandb~=0.12.9
