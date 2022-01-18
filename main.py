@@ -24,7 +24,7 @@ def main():
         latent_dim=args.latent_dim,
         text_embed_dim=args.text_embed_dim,
         batch_size=args.batch_size,
-        pretrained_resnet=args.pretrained_resnet,
+        pretrained_resnet=args.no_pretrained_resnet,
         num_worker=args.num_worker,
         persistent_workers=args.persistent_workers,
         pin_memory=args.pin_memory,
