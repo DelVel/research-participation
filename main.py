@@ -1,7 +1,6 @@
 from argparse import ArgumentParser
 
 import pytorch_lightning as pl
-import wandb
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.plugins import DDPPlugin
@@ -29,6 +28,7 @@ def main():
         num_worker=args.num_worker,
         persistent_workers=args.persistent_workers,
         pin_memory=args.pin_memory,
+        z_per_img=args.z_per_img,
     )
     trainer.fit(model)
 

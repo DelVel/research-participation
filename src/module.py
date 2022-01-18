@@ -20,22 +20,27 @@ class COCOSystem(pl.LightningModule):
     def add_model_specific_args(parent_parser):
         parser = parent_parser.add_argument_group("COCOSystem")
         parser.add_argument("--num_worker", type=int, default=4)
-        parser.add_argument("--persistent_workers", type=bool, default=False)
-        parser.add_argument("--pin_memory", type=bool, default=False)
+        parser.add_argument("--persistent_workers", action="store_true")
+        parser.add_argument("--pin_memory", action="store_true")
 
         parser = parent_parser.add_argument_group("COCOModel")
         parser.add_argument('--latent_dim', type=int, default=256)
-        parser.add_argument('--text_embed_dim', type=int, default=256)
         parser.add_argument('--batch_size', type=int, default=32)
 
+        parser = parent_parser.add_argument_group("GRUConfig")
+        parser.add_argument('--text_embed_dim', type=int, default=256)
+
+        parser = parent_parser.add_argument_group("TransformerConfig")
+        parser.add_argument('--z_per_img', type=int, default=5)
+
         parser = parent_parser.add_argument_group("ResNetConfig")
-        parser.add_argument('--pretrained_resnet', type=bool, default=True)
+        parser.add_argument('--no_pretrained_resnet', action='store_false')
         return parent_parser
 
     # noinspection PyUnusedLocal
     def __init__(self, latent_dim, text_embed_dim, batch_size,
                  pretrained_resnet, num_worker, persistent_workers,
-                 pin_memory):
+                 pin_memory, z_per_img):
         super().__init__()
         assert latent_dim % 2 == 0, "latent_dim must be even"
         self.save_hyperparameters()
@@ -44,7 +49,7 @@ class COCOSystem(pl.LightningModule):
         self.linear = torch.nn.Identity() \
             if ResNetFeature.sequence_dim == latent_dim \
             else torch.nn.Linear(ResNetFeature.sequence_dim, latent_dim)
-        self.image_trans = ImageTrans(latent_dim)
+        self.image_trans = ImageTrans(latent_dim, z_per_img)
 
         self.gru = TextGRU(text_embed_dim, latent_dim // 2)
 
