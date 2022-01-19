@@ -1,7 +1,6 @@
 from argparse import ArgumentParser
 
 import pytorch_lightning as pl
-from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.plugins import DDPPlugin
 
@@ -17,7 +16,6 @@ def main():
         override['logger'] = WandbLogger(project='coco-system')
     trainer = pl.Trainer.from_argparse_args(
         args,
-        callbacks=[EarlyStopping(monitor="val_loss")],
         **override
     )
     model = COCOSystem(
