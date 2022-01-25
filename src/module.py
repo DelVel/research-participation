@@ -37,24 +37,38 @@ class COCOSystem(pl.LightningModule):
         return parent_parser
 
     # noinspection PyUnusedLocal
-    def __init__(self, latent_dim, text_embed_dim, batch_size,
-                 pretrained_resnet, num_worker, persistent_workers,
-                 pin_memory, z_per_img):
+    def __init__(self,
+                 latent_dim,
+                 text_embed_dim,
+                 batch_size,
+                 pretrained_resnet,
+                 num_worker,
+                 persistent_workers,
+                 pin_memory,
+                 z_per_img
+                 ):
         super().__init__()
         assert latent_dim % 2 == 0, "latent_dim must be even"
         self.save_hyperparameters()
 
-        self.image_trans = ImageTrans(latent_dim, z_per_img, pretrained_resnet)
-        self.gru = TextGRU(text_embed_dim, latent_dim // 2)
+        self.image_trans = ImageTrans(
+            out_dim=latent_dim,
+            zpi=z_per_img,
+            pretrained=pretrained_resnet
+        )
+        self.gru = TextGRU(
+            out_dim=latent_dim,
+            text_embed_dim=text_embed_dim
+        )
 
         self.loss = minimize_maximum_cosine
 
     def forward(self, img, text):
         img = self.image_trans(img)
-        text = self.process_text(text)
+        text = self._process_text(text)
         return img, text
 
-    def process_text(self, text):
+    def _process_text(self, text):
         g_dim = text.shape[1]
         text = einops.rearrange(text, 'b g l -> (b g) l')
         text = self.gru(text)
@@ -62,18 +76,13 @@ class COCOSystem(pl.LightningModule):
         return text
 
     def training_step(self, batch, batch_idx):
-        img, text = batch
-        img, text = self.forward(img, text)
-        loss = self.loss(img, text)
+        loss = self._loss_of_batch(batch)
         self.log("loss", loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
-        img, text = batch
-        img, text = self.forward(img, text)
-        loss = self.loss(img, text)
+        loss = self._loss_of_batch(batch)
         self.log("val_loss", loss)
-        return img, text
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
@@ -109,6 +118,12 @@ class COCOSystem(pl.LightningModule):
     def predict_dataloader(self):
         # Intentionally empty; No prediction for this model
         pass
+
+    def _loss_of_batch(self, batch):
+        img, text = batch
+        img, text = self.forward(img, text)
+        loss = self.loss(img, text)
+        return loss
 
     @staticmethod
     def get_stage_dataloader_param(stage):
