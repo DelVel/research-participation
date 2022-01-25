@@ -22,30 +22,40 @@ class COCOSystem(pl.LightningModule):
         parser.add_argument("--num_worker", type=int, default=4)
         parser.add_argument("--persistent_workers", action="store_true")
         parser.add_argument("--pin_memory", action="store_true")
+        parser.add_argument('--batch_size', type=int, default=32)
 
         parser = parent_parser.add_argument_group("COCOModel")
         parser.add_argument('--latent_dim', type=int, default=256)
-        parser.add_argument('--batch_size', type=int, default=32)
 
-        parser = parent_parser.add_argument_group("GRUConfig")
-        parser.add_argument('--text_embed_dim', type=int, default=256)
-
-        parser = parent_parser.add_argument_group("TransformerConfig")
-        parser.add_argument('--no_pretrained_resnet', action='store_false')
-        parser.add_argument('--z_per_img', type=int, default=5)
+        TextGRU.add_module_specific_args(parent_parser)
+        ImageTrans.add_module_specific_args(parent_parser)
 
         return parent_parser
 
     # noinspection PyUnusedLocal
-    def __init__(self,
-                 latent_dim,
-                 text_embed_dim,
-                 batch_size,
-                 pretrained_resnet,
+    def __init__(self, *,
                  num_worker,
                  persistent_workers,
                  pin_memory,
-                 z_per_img
+                 batch_size,
+
+                 latent_dim,
+
+                 pretrained_resnet,
+                 z_per_img,
+                 trans_dim,
+                 nhead,
+                 num_encoder_layers,
+                 num_decoder_layers,
+                 dim_feedforward,
+                 trans_dropout,
+                 layer_norm_eps,
+                 norm_first,
+
+                 text_embed_dim,
+                 gru_hidden_dim,
+                 gru_num_layers,
+                 gru_dropout
                  ):
         super().__init__()
         assert latent_dim % 2 == 0, "latent_dim must be even"
@@ -53,12 +63,25 @@ class COCOSystem(pl.LightningModule):
 
         self.image_trans = ImageTrans(
             out_dim=latent_dim,
+
+            pretrained=pretrained_resnet,
             zpi=z_per_img,
-            pretrained=pretrained_resnet
+            trans_dim=trans_dim,
+            nhead=nhead,
+            num_encoder_layers=num_encoder_layers,
+            num_decoder_layers=num_decoder_layers,
+            dim_feedforward=dim_feedforward,
+            dropout=trans_dropout,
+            layer_norm_eps=layer_norm_eps,
+            norm_first=norm_first
         )
         self.gru = TextGRU(
             out_dim=latent_dim,
-            text_embed_dim=text_embed_dim
+
+            text_embed_dim=text_embed_dim,
+            gru_hidden_size=gru_hidden_dim,
+            gru_layers=gru_num_layers,
+            dropout=gru_dropout,
         )
 
         self.loss = minimize_maximum_cosine

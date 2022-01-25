@@ -12,20 +12,35 @@ class ImageTrans(nn.Module):
     seq_len = 49
     seq_dim = 2048
 
+    @staticmethod
+    def add_module_specific_args(parent_parser):
+        parser = parent_parser.add_argument_group("ImageTrans Config")
+        parser.add_argument('--no_pretrained_resnet', action='store_false')
+        parser.add_argument('--z_per_img', type=int, default=5)
+        parser.add_argument('--trans_dim', type=int, default=512)
+        parser.add_argument('--nhead', type=int, default=8)
+        parser.add_argument('--num_encoder_layers', type=int, default=8)
+        parser.add_argument('--num_decoder_layers', type=int, default=8)
+        parser.add_argument('--dim_feedforward', type=int, default=2048)
+        parser.add_argument('--trans_dropout', type=float, default=0.1)
+        parser.add_argument('--layer_norm_eps', type=float, default=1e-6)
+        parser.add_argument('--norm_first', action='store_true')
+        return parent_parser
+
     def __init__(self, *,
-                 out_dim=256,
+                 out_dim,
 
-                 pretrained=True,
-                 zpi=5,
-                 trans_dim=512,
+                 pretrained,
+                 zpi,
+                 trans_dim,
 
-                 nhead=8,
-                 num_encoder_layers=8,
-                 num_decoder_layers=8,
-                 dim_feedforward=2048,
-                 dropout=0.1,
-                 layer_norm_eps=1e-6,
-                 norm_first=False
+                 nhead,
+                 num_encoder_layers,
+                 num_decoder_layers,
+                 dim_feedforward,
+                 dropout,
+                 layer_norm_eps,
+                 norm_first
                  ):
         super(ImageTrans, self).__init__()
         self.resnet = nn.Sequential(
@@ -84,25 +99,33 @@ class ImageTrans(nn.Module):
 
 
 class TextGRU(nn.Module):
-    def __init__(self, *,
-                 out_dim=128,
+    @staticmethod
+    def add_module_specific_args(parent_parser):
+        parser = parent_parser.add_argument_group("TextGRU Config")
+        parser.add_argument('--text_embed_dim', type=int, default=256)
+        parser.add_argument('--gru_hidden_dim', type=int, default=512)
+        parser.add_argument('--gru_num_layers', type=int, default=1)
+        parser.add_argument('--gru_dropout', type=float, default=0)
+        return parent_parser
 
-                 text_embed_dim=128,
-                 gru_hidden_size=128,
-                 gru_layers=1,
-                 bias=True,
-                 dropout=0,
-                 bidirectional=True
+    def __init__(self, *,
+                 out_dim,
+
+                 text_embed_dim,
+                 gru_hidden_size,
+                 gru_layers,
+                 dropout,
                  ):
         super(TextGRU, self).__init__()
         self.gru = nn.GRU(
             input_size=text_embed_dim,
             hidden_size=gru_hidden_size,
             num_layers=gru_layers,
-            bias=bias,
-            batch_first=True,
             dropout=dropout,
-            bidirectional=bidirectional
+
+            bias=True,
+            batch_first=True,
+            bidirectional=True
         )
         self.embed = nn.Embedding(
             num_embeddings=vocab_size,
@@ -112,9 +135,8 @@ class TextGRU(nn.Module):
         self.positional = nn.Parameter(
             torch.zeros(padding_len, text_embed_dim)
         )
-        coefficient = 2 if bidirectional else 1
         self.linear_sequential = nn.Sequential(
-            nn.Linear(coefficient * gru_layers * gru_hidden_size, 2048),
+            nn.Linear(2 * gru_layers * gru_hidden_size, 2048),
             nn.ReLU(),
             nn.Linear(2048, out_dim)
         )
