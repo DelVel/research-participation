@@ -11,7 +11,7 @@ from torchvision.transforms import Compose, ToTensor, Lambda, RandomCrop
 from src.dataset import train_root, val_root, train_caption, val_caption, \
     test_root
 from src.loss import minimize_maximum_cosine
-from src.model import ResNetFeature, TextGRU, ImageTrans
+from src.model import TextGRU, ImageTrans
 from src.vocab import vocab, padding_len, padding_idx, start_token, end_token
 
 
@@ -31,10 +31,9 @@ class COCOSystem(pl.LightningModule):
         parser.add_argument('--text_embed_dim', type=int, default=256)
 
         parser = parent_parser.add_argument_group("TransformerConfig")
+        parser.add_argument('--no_pretrained_resnet', action='store_false')
         parser.add_argument('--z_per_img', type=int, default=5)
 
-        parser = parent_parser.add_argument_group("ResNetConfig")
-        parser.add_argument('--no_pretrained_resnet', action='store_false')
         return parent_parser
 
     # noinspection PyUnusedLocal
@@ -45,25 +44,22 @@ class COCOSystem(pl.LightningModule):
         assert latent_dim % 2 == 0, "latent_dim must be even"
         self.save_hyperparameters()
 
-        self.resnet = ResNetFeature(pretrained_resnet)
-        self.linear = torch.nn.Identity() \
-            if ResNetFeature.sequence_dim == latent_dim \
-            else torch.nn.Linear(ResNetFeature.sequence_dim, latent_dim)
-        self.image_trans = ImageTrans(latent_dim, z_per_img)
-
+        self.image_trans = ImageTrans(latent_dim, z_per_img, pretrained_resnet)
         self.gru = TextGRU(text_embed_dim, latent_dim // 2)
 
         self.loss = minimize_maximum_cosine
 
     def forward(self, img, text):
-        img = self.resnet(img)
-        img = self.linear(img)
         img = self.image_trans(img)
+        text = self.process_text(text)
+        return img, text
+
+    def process_text(self, text):
         g_dim = text.shape[1]
         text = einops.rearrange(text, 'b g l -> (b g) l')
         text = self.gru(text)
         text = einops.rearrange(text, '(b g) l -> b g l', g=g_dim)
-        return img, text
+        return text
 
     def training_step(self, batch, batch_idx):
         img, text = batch

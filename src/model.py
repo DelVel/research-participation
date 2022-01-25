@@ -9,17 +9,28 @@ from src.vocab import padding_idx, vocab_size, padding_len
 
 
 class ImageTrans(nn.Module):
-    def __init__(self, d_model=256, tgt_len=5):
+    sequence_length = 49
+    sequence_dim = 2048
+
+    def __init__(self, d_model=256, tgt_len=5, pretrained=True):
         super(ImageTrans, self).__init__()
+        self.resnet = nn.Sequential(
+            *list(resnet50(pretrained=pretrained).children())[:-2]
+        )
+        self.linear = torch.nn.Identity() \
+            if ImageTrans.sequence_dim == d_model \
+            else torch.nn.Linear(ImageTrans.sequence_dim, d_model)
         self.transformer = nn.Transformer(
             d_model=d_model,
             batch_first=True
         )
         self.transformer_param = nn.Parameter(torch.zeros(tgt_len, d_model))
         self.positional = nn.Parameter(
-            torch.zeros(ResNetFeature.sequence_length, d_model))
+            torch.zeros(ImageTrans.sequence_length, d_model)
+        )
 
     def forward(self, x):
+        x = self._pass_resnet(x)
         x = x + self.positional
         tgt = self.transformer_param
         tgt_e = einops.repeat(tgt, 'l_per_img model -> batch l_per_img model',
@@ -27,23 +38,13 @@ class ImageTrans(nn.Module):
         x = self.transformer(x, tgt_e)
         return x
 
-
-class ResNetFeature(nn.Module):
-    sequence_length = 49
-    sequence_dim = 2048
-
-    def __init__(self, pretrained=True):
-        super(ResNetFeature, self).__init__()
-        self.resnet = nn.Sequential(
-            *list(resnet50(pretrained=pretrained).children())[:-2]
-        )
-
-    def forward(self, x):
+    def _pass_resnet(self, x):
         x = self.resnet(x)
         x = einops.rearrange(x, 'b c h w -> b (h w) c')
-        assert x.shape[1] == ResNetFeature.sequence_length \
+        assert x.shape[1] == ImageTrans.sequence_length \
                and x.shape[2] == \
-               ResNetFeature.sequence_dim, 'ResNet feature shape error'
+               ImageTrans.sequence_dim, 'ResNet feature shape error'
+        x = self.linear(x)
         return x
 
 
