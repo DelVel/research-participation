@@ -114,7 +114,7 @@ class TextGRU(nn.Module):
         )
         coefficient = 2 if bidirectional else 1
         self.linear_sequential = nn.Sequential(
-            nn.Linear(coefficient * gru_layers * out_dim, 2048),
+            nn.Linear(coefficient * gru_layers * gru_hidden_size, 2048),
             nn.ReLU(),
             nn.Linear(2048, out_dim)
         )
