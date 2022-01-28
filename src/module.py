@@ -10,7 +10,7 @@ from torchvision.transforms import Compose, ToTensor, Lambda, RandomCrop
 
 from src.dataset import train_root, val_root, train_caption, val_caption, \
     test_root
-from src.loss import minimize_maximum_cosine
+from src.loss import cross_loss
 from src.model import TextGRU, ImageTrans
 from src.vocab import vocab, padding_len, padding_idx, start_token, end_token
 
@@ -84,7 +84,7 @@ class COCOSystem(pl.LightningModule):
             dropout=gru_dropout,
         )
 
-        self.loss = minimize_maximum_cosine
+        self.loss = cross_loss
 
     def forward(self, img, text):
         img = self.image_trans(img)
