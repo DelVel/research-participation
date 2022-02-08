@@ -10,7 +10,7 @@ from torchvision.transforms import Compose, ToTensor, Lambda, RandomCrop
 
 from src.dataset import train_root, val_root, train_caption, val_caption, \
     test_root
-from src.loss import cross_loss
+from src.loss import SomeLoss
 from src.model import TextGRU, ImageTrans
 from src.vocab import vocab, padding_len, padding_idx, start_token, end_token
 
@@ -29,6 +29,7 @@ class COCOSystem(pl.LightningModule):
 
         TextGRU.add_module_specific_args(parent_parser)
         ImageTrans.add_module_specific_args(parent_parser)
+        SomeLoss.add_module_specific_args(parent_parser)
 
         return parent_parser
 
@@ -55,7 +56,9 @@ class COCOSystem(pl.LightningModule):
                  text_embed_dim,
                  gru_hidden_dim,
                  gru_num_layers,
-                 gru_dropout
+                 gru_dropout,
+
+                 temperature
                  ):
         super().__init__()
         assert latent_dim % 2 == 0, "latent_dim must be even"
@@ -84,7 +87,7 @@ class COCOSystem(pl.LightningModule):
             dropout=gru_dropout,
         )
 
-        self.loss = cross_loss
+        self.loss = SomeLoss(temperature)
 
     def forward(self, img, text):
         img = self.image_trans(img)

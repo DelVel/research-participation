@@ -40,7 +40,9 @@ def main():
         text_embed_dim=args.text_embed_dim,
         gru_hidden_dim=args.gru_hidden_dim,
         gru_num_layers=args.gru_num_layers,
-        gru_dropout=args.gru_dropout
+        gru_dropout=args.gru_dropout,
+
+        temperature=args.temperature,
     )
     trainer.fit(model)
 
