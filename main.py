@@ -42,7 +42,7 @@ def main():
         gru_num_layers=args.gru_num_layers,
         gru_dropout=args.gru_dropout,
 
-        temperature=args.temperature,
+        temperature=args.loss_temperature,
     )
     trainer.fit(model)
 
