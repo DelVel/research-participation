@@ -1,87 +1,115 @@
+from abc import ABCMeta, abstractmethod
+
 import torch
-from einops import reduce, rearrange
+from einops import reduce
+from torch.nn import Module
 from torch.nn.functional import normalize
 
 
-def cross_loss(img, text):
-    assert img.shape[0] == text.shape[0]
-    batch = img.shape[0]
-    mat = get_mat(img, text)
-    max_elem = torch.diagonal(mat).mean()
-    min_elem = torch.triu(mat, diagonal=1).sum() / (batch * (batch - 1) / 2)
-    return min_elem - max_elem
+class InnerLoss(Module, metaclass=ABCMeta):
+    def __init__(self):
+        super().__init__()
+        self.covar = None
+        self.batch = None
+
+    def forward(self, img, text):
+        """
+        Loss function.
+
+        :param img: Shape of (batch, z_per_i, embedding_dim)
+        :param text: Shape of (batch, captions, embedding_dim)
+        :return: Loss value.
+        """
+        assert img.shape[0] == text.shape[0]
+        assert img.shape[2] == text.shape[2]
+        self._get_inner(img, text)
+        self.batch = img.shape[0]
+        return self.post_forward(img, text)
+
+    @abstractmethod
+    def post_forward(self, img, text):
+        """
+        Forward pass after getting inner product.
+
+        :return: self.covar for inner product tensor, self.batch for batch size
+        of the input.
+        """
+        pass
+
+    def _get_inner(self, img, text):
+        img = normalize(img, dim=2)
+        text = normalize(text, dim=2)
+        self.covar = torch.inner(img, text)
 
 
-def get_mat(img, text):
-    img = normalize(img, dim=2)
-    text = normalize(text, dim=2)
-    covar = torch.inner(img, text)
-    covar = reduce(covar, 'b1 i b2 t -> b1 b2 t', 'max')
-    covar = reduce(covar, 'b1 b2 t -> b1 b2', 'mean')
-    return covar
+class CrossLoss(InnerLoss):
+    def post_forward(self, img, text):
+        covar = self.covar
+        covar = reduce(covar, 'b1 i b2 t -> b1 b2 t', 'max')
+        covar = reduce(covar, 'b1 b2 t -> b1 b2', 'mean')
+        max_elem = covar.trace() / self.batch
+        min_elem = 0
+        if self.batch > 1:
+            min_elem = torch.triu(covar, diagonal=1).sum() / (
+                    self.batch * (self.batch - 1) / 2)
+        return min_elem - max_elem
 
 
-class SomeLoss(torch.nn.Module):
+class ContrastiveLoss(InnerLoss):
     @staticmethod
     def add_module_specific_args(parent_parser):
         parser = parent_parser.add_argument_group("Loss Config")
         parser.add_argument('--loss_temperature', type=float, default=1.0)
         return parent_parser
 
-    def __init__(self, temperature):
-        super(SomeLoss, self).__init__()
+    def __init__(self, temperature, epsilon=10):
+        super().__init__()
         self.temperature = temperature
-        self.covar = None
+        self.epsilon = epsilon
 
-    def forward(self, img, text):
-        self._get_inner(img, text)
-        covar_temp = reduce(self.covar, 'bi i bt t -> bi bt t', 'max')
-        covar_temp *= self.temperature
+    def post_forward(self, img, text):
+        self.covar = reduce(self.covar, 'bi i bt t -> bi bt t', 'max')
+        self.covar *= self.temperature
+        return self.sum_up_loss()
 
+    def sum_up_loss(self):
         loss = 0
-        loss += self._i2t(covar_temp)
-        loss += self._t2i(covar_temp)
+        loss += self._i2t(self.covar)
+        loss += self._t2i(self.covar)
         return loss
 
-    def _i2t(self, covar_temp):
+    def _i2t(self, covar):
         loss = 0
-        loss += self._i2t_first_term(covar_temp)
-        loss += self._i2t_second_term(covar_temp)
+        loss += self._i2t_term_1(covar)
+        loss += self._i2t_term_2(covar)
         return loss
 
     @staticmethod
-    def _i2t_first_term(covar_temp):
-        mean = reduce(covar_temp, 'bi bt t -> bi bt', 'mean')
-        sigma = torch.diagonal(mean).sum()
+    def _i2t_term_1(covar):
+        mean = reduce(covar, 'bi bt t -> bi bt', 'mean')
+        sigma = mean.trace()
         return -sigma
 
-    @staticmethod
-    def _i2t_second_term(covar_temp):
-        covar_temp_exp = covar_temp.exp()
-        covar_second = rearrange(covar_temp_exp, 'bi bt t -> bi (bt t)')
-        first_sigma = reduce(covar_second, 'bi t -> bi', 'sum')
-        return first_sigma.log().sum()
+    def _i2t_term_2(self, covar):
+        covar_exp = covar.exp()
+        sigma = reduce(covar_exp, 'bi bt t -> bi', 'sum')
+        sigma += self.epsilon
+        return sigma.log().sum()
 
-    def _t2i(self, covar_temp):
+    def _t2i(self, covar):
         loss = 0
-        loss += self._t2i_first_term(covar_temp)
-        loss += self._t2i_second_term(covar_temp)
+        loss += self._t2i_term_1(covar)
+        loss += self._t2i_term_2(covar)
         return loss
 
     @staticmethod
-    def _t2i_first_term(covar_temp):
-        first_term_sigma = reduce(covar_temp, 'bi bt t -> bi bt', 'sum')
-        first_term_sigma = torch.diagonal(first_term_sigma).sum()
-        return -first_term_sigma
+    def _t2i_term_1(covar_temp):
+        mean = reduce(covar_temp, 'bi bt t -> bi bt', 'sum')
+        sigma = mean.trace()
+        return -sigma
 
-    @staticmethod
-    def _t2i_second_term(covar_temp):
-        covar_temp_exp = covar_temp.exp()
-        covar_second = rearrange(covar_temp_exp, 'bi bt t -> bi (bt t)')
-        first_sigma = reduce(covar_second, 'bi t -> t', 'sum')
-        return first_sigma.log().sum()
-
-    def _get_inner(self, img, text):
-        img = normalize(img, dim=2)
-        text = normalize(text, dim=2)
-        self.covar = torch.inner(img, text)
+    def _t2i_term_2(self, covar_temp):
+        covar_exp = covar_temp.exp()
+        sigma = reduce(covar_exp, 'bi bt t -> bt t', 'sum')
+        sigma += self.epsilon
+        return sigma.log().sum()

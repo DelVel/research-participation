@@ -10,7 +10,7 @@ from torchvision.transforms import Compose, ToTensor, Lambda, RandomCrop
 
 from src.dataset import train_root, val_root, train_caption, val_caption, \
     test_root
-from src.loss import SomeLoss
+from src.loss import ContrastiveLoss
 from src.model import TextGRU, ImageTrans
 from src.vocab import vocab, padding_len, padding_idx, start_token, end_token
 
@@ -29,7 +29,7 @@ class COCOSystem(pl.LightningModule):
 
         TextGRU.add_module_specific_args(parent_parser)
         ImageTrans.add_module_specific_args(parent_parser)
-        SomeLoss.add_module_specific_args(parent_parser)
+        ContrastiveLoss.add_module_specific_args(parent_parser)
 
         return parent_parser
 
@@ -87,7 +87,7 @@ class COCOSystem(pl.LightningModule):
             dropout=gru_dropout,
         )
 
-        self.loss = SomeLoss(temperature)
+        self.loss = ContrastiveLoss(temperature)
 
     def forward(self, img, text):
         img = self.image_trans(img)
@@ -111,7 +111,7 @@ class COCOSystem(pl.LightningModule):
         self.log("val_loss", loss)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-3)
+        optimizer = torch.optim.Adam(self.parameters())
         return optimizer
 
     def train_dataloader(self):
