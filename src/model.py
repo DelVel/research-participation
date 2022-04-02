@@ -41,43 +41,31 @@ class ImageTrans(nn.Module):
         parser.add_argument('--norm_first', action='store_true')
         return parent_parser
 
-    def __init__(self, *,
-                 out_dim,
-
-                 pretrained,
-                 zpi,
-                 trans_dim,
-
-                 nhead,
-                 num_encoder_layers,
-                 num_decoder_layers,
-                 dim_feedforward,
-                 dropout,
-                 layer_norm_eps,
-                 norm_first
-                 ):
+    def __init__(self, args, *, out_dim):
         super(ImageTrans, self).__init__()
         self.resnet = nn.Sequential(
-            *list(resnet50(pretrained=pretrained).children())[:-2]
+            *list(resnet50(pretrained=args.no_pretrained_resnet).children())[
+             :-2]
         )
-        self.linear = nn.Linear(ImageTrans.seq_dim, trans_dim)
+        self.linear = nn.Linear(ImageTrans.seq_dim, args.trans_dim)
         self.transformer = nn.Transformer(
-            d_model=trans_dim,
-            nhead=nhead,
-            num_encoder_layers=num_encoder_layers,
-            num_decoder_layers=num_decoder_layers,
-            dim_feedforward=dim_feedforward,
-            dropout=dropout,
-            layer_norm_eps=layer_norm_eps,
+            d_model=args.trans_dim,
+            nhead=args.nhead,
+            num_encoder_layers=args.num_encoder_layers,
+            num_decoder_layers=args.num_decoder_layers,
+            dim_feedforward=args.dim_feedforward,
+            dropout=args.trans_dropout,
+            layer_norm_eps=args.layer_norm_eps,
             batch_first=True,
-            norm_first=norm_first
+            norm_first=args.norm_first
         )
-        self.transformer_param = nn.Parameter(torch.zeros(zpi, trans_dim))
+        self.transformer_param = nn.Parameter(
+            torch.zeros(args.z_per_img, args.trans_dim))
         self.positional = nn.Parameter(
-            torch.zeros((ImageTrans.seq_len, trans_dim))
+            torch.zeros((ImageTrans.seq_len, args.trans_dim))
         )
         self.linear_sequential = nn.Sequential(
-            nn.Linear(trans_dim, 2048),
+            nn.Linear(args.trans_dim, 2048),
             nn.ReLU(),
             nn.Linear(2048, out_dim)
         )
@@ -119,20 +107,13 @@ class TextGRU(nn.Module):
         parser.add_argument('--gru_dropout', type=float, default=0)
         return parent_parser
 
-    def __init__(self, *,
-                 out_dim,
-
-                 text_embed_dim,
-                 gru_hidden_size,
-                 gru_layers,
-                 dropout,
-                 ):
+    def __init__(self, args, *, out_dim):
         super(TextGRU, self).__init__()
         self.gru = nn.GRU(
-            input_size=text_embed_dim,
-            hidden_size=gru_hidden_size,
-            num_layers=gru_layers,
-            dropout=dropout,
+            input_size=args.text_embed_dim,
+            hidden_size=args.gru_hidden_dim,
+            num_layers=args.gru_num_layers,
+            dropout=args.gru_dropout,
 
             bias=True,
             batch_first=True,
@@ -140,11 +121,11 @@ class TextGRU(nn.Module):
         )
         self.embed = nn.Embedding(
             num_embeddings=vocab_size,
-            embedding_dim=text_embed_dim,
+            embedding_dim=args.text_embed_dim,
             padding_idx=padding_idx
         )
         self.linear_sequential = nn.Sequential(
-            nn.Linear(2 * gru_layers * gru_hidden_size, 2048),
+            nn.Linear(2 * args.gru_num_layers * args.gru_hidden_dim, 2048),
             nn.ReLU(),
             nn.Linear(2048, out_dim)
         )

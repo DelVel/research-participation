@@ -76,9 +76,9 @@ class ContrastiveLoss(InnerLoss):
         parser.add_argument('--loss_temperature', type=float, default=1.0)
         return parent_parser
 
-    def __init__(self, temperature):
+    def __init__(self, args):
         super().__init__()
-        self.temperature = temperature
+        self.temperature = args.loss_temperature
 
     def post_forward(self, img, text):
         self.covar = reduce(self.covar, 'bi i bt t -> bi bt t', 'max')

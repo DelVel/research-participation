@@ -48,60 +48,16 @@ class COCOSystem(pl.LightningModule):
         return parent_parser
 
     # noinspection PyUnusedLocal
-    def __init__(self, *,
-                 num_worker,
-                 persistent_workers,
-                 pin_memory,
-                 batch_size,
-
-                 latent_dim,
-
-                 pretrained_resnet,
-                 z_per_img,
-                 trans_dim,
-                 nhead,
-                 num_encoder_layers,
-                 num_decoder_layers,
-                 dim_feedforward,
-                 trans_dropout,
-                 layer_norm_eps,
-                 norm_first,
-
-                 text_embed_dim,
-                 gru_hidden_dim,
-                 gru_num_layers,
-                 gru_dropout,
-
-                 temperature
-                 ):
+    def __init__(self, parser):
         super().__init__()
+        latent_dim = parser.latent_dim
         assert latent_dim % 2 == 0, "latent_dim must be even"
         self.save_hyperparameters()
 
-        self.image_trans = ImageTrans(
-            out_dim=latent_dim,
+        self.image_trans = ImageTrans(parser, out_dim=latent_dim)
+        self.gru = TextGRU(parser, out_dim=latent_dim)
 
-            pretrained=pretrained_resnet,
-            zpi=z_per_img,
-            trans_dim=trans_dim,
-            nhead=nhead,
-            num_encoder_layers=num_encoder_layers,
-            num_decoder_layers=num_decoder_layers,
-            dim_feedforward=dim_feedforward,
-            dropout=trans_dropout,
-            layer_norm_eps=layer_norm_eps,
-            norm_first=norm_first
-        )
-        self.gru = TextGRU(
-            out_dim=latent_dim,
-
-            text_embed_dim=text_embed_dim,
-            gru_hidden_size=gru_hidden_dim,
-            gru_layers=gru_num_layers,
-            dropout=gru_dropout,
-        )
-
-        self.loss = ContrastiveLoss(temperature)
+        self.loss = ContrastiveLoss(parser)
 
     def forward(self, img, text):
         img = self.image_trans(img)
@@ -139,20 +95,21 @@ class COCOSystem(pl.LightningModule):
 
     def get_dataloader(self, stage):
         ann_file, root, shuffle = self.get_stage_dataloader_param(stage)
-        coco_val = CocoCaptions(
+        dataset = CocoCaptions(
             root=root,
             annFile=ann_file,
             transform=Compose(
                 [RandomCrop(224, pad_if_needed=True), ToTensor()]),
             target_transform=Lambda(self.word2idx)
         )
+        parser = self.hparams.parser
         return DataLoader(
-            coco_val,
+            dataset,
             shuffle=shuffle,
-            batch_size=self.hparams.batch_size,
-            num_workers=self.hparams.num_worker,
-            persistent_workers=self.hparams.persistent_workers,
-            pin_memory=self.hparams.pin_memory
+            batch_size=parser.batch_size,
+            num_workers=parser.num_worker,
+            persistent_workers=parser.persistent_workers,
+            pin_memory=parser.pin_memory
         )
 
     def predict_dataloader(self):
