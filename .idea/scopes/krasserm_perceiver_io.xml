@@ -1,0 +1,3 @@
+<component name="DependencyValidationManager">
+  <scope name="krasserm/perceiver-io" pattern="file[research-participation]:src/model/perceiver_io/*" />
+</component>

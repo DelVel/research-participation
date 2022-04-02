@@ -1,0 +1,8 @@
+<component name="CopyrightManager">
+  <settings>
+    <module2copyright>
+      <element module="krasserm/perceiver-io" copyright="krasserm/perceiver-io" />
+      <element module="Taegyu-Park" copyright="Taegyu-Park" />
+    </module2copyright>
+  </settings>
+</component>
