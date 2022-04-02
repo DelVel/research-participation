@@ -62,54 +62,36 @@ class ContrastiveLoss(InnerLoss):
         parser.add_argument('--loss_temperature', type=float, default=1.0)
         return parent_parser
 
-    def __init__(self, temperature, epsilon=10):
+    def __init__(self, temperature):
         super().__init__()
         self.temperature = temperature
-        self.epsilon = epsilon
 
     def post_forward(self, img, text):
         self.covar = reduce(self.covar, 'bi i bt t -> bi bt t', 'max')
         self.covar *= self.temperature
-        return self.sum_up_loss()
+        self.covar = self.covar.exp()
+        return self._sum_up_loss()
 
-    def sum_up_loss(self):
+    def _sum_up_loss(self):
         loss = 0
-        loss += self._i2t(self.covar)
-        loss += self._t2i(self.covar)
+        loss += self._i2t()
+        loss += self._t2i()
         return loss
 
-    def _i2t(self, covar):
-        loss = 0
-        loss += self._i2t_term_1(covar)
-        loss += self._i2t_term_2(covar)
-        return loss
-
-    @staticmethod
-    def _i2t_term_1(covar):
-        mean = reduce(covar, 'bi bt t -> bi bt', 'mean')
-        sigma = mean.trace()
+    def _i2t(self):
+        nominator = self.covar
+        denominator = reduce(self.covar, 'bi bt t -> bi 1 1', 'sum')
+        fraction = nominator / denominator
+        log = fraction.log()
+        mean = reduce(log, 'bi bt t -> bi bt', 'mean')
+        sigma = mean.diagonal().sum()
         return -sigma
 
-    def _i2t_term_2(self, covar):
-        covar_exp = covar.exp()
-        sigma = reduce(covar_exp, 'bi bt t -> bi', 'sum')
-        sigma += self.epsilon
-        return sigma.log().sum()
-
-    def _t2i(self, covar):
-        loss = 0
-        loss += self._t2i_term_1(covar)
-        loss += self._t2i_term_2(covar)
-        return loss
-
-    @staticmethod
-    def _t2i_term_1(covar_temp):
-        mean = reduce(covar_temp, 'bi bt t -> bi bt', 'sum')
-        sigma = mean.trace()
+    def _t2i(self):
+        nominator = self.covar
+        denominator = reduce(self.covar, 'bi bt t -> 1 bt t', 'sum')
+        fraction = nominator / denominator
+        log = fraction.log()
+        mean = reduce(log, 'bi bt t -> bi bt', 'sum')
+        sigma = mean.diagonal().sum()
         return -sigma
-
-    def _t2i_term_2(self, covar_temp):
-        covar_exp = covar_temp.exp()
-        sigma = reduce(covar_exp, 'bi bt t -> bt t', 'sum')
-        sigma += self.epsilon
-        return sigma.log().sum()

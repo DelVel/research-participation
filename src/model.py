@@ -5,7 +5,7 @@ from torch import Tensor
 from torch.nn.utils.rnn import pack_padded_sequence
 from torchvision.models import resnet50
 
-from src.vocab import padding_idx, vocab_size, padding_len
+from src.vocab import padding_idx, vocab_size
 
 
 class ImageTrans(nn.Module):
@@ -59,7 +59,6 @@ class ImageTrans(nn.Module):
             norm_first=norm_first
         )
         self.transformer_param = nn.Parameter(torch.zeros(zpi, trans_dim))
-        self.token = nn.Parameter(torch.zeros((trans_dim,)))
         self.positional = nn.Parameter(
             torch.zeros((ImageTrans.seq_len, trans_dim))
         )
@@ -84,8 +83,6 @@ class ImageTrans(nn.Module):
 
     def _preprocess_sequence(self, x):
         x = x + self.positional
-        expanded = einops.repeat(self.token, 'd -> b 1 d', b=x.shape[0])
-        x = torch.cat((x, expanded), dim=1)
         return x
 
     def _pass_resnet(self, x):
@@ -132,9 +129,6 @@ class TextGRU(nn.Module):
             embedding_dim=text_embed_dim,
             padding_idx=padding_idx
         )
-        self.positional = nn.Parameter(
-            torch.zeros(padding_len, text_embed_dim)
-        )
         self.linear_sequential = nn.Sequential(
             nn.Linear(2 * gru_layers * gru_hidden_size, 2048),
             nn.ReLU(),
@@ -155,7 +149,7 @@ class TextGRU(nn.Module):
     def _preprocess_sequence(self, x):
         assert padding_idx == 0, 'count_nonzero assumes padding_idx is 0.'
         lengths = x.count_nonzero(dim=-1).tolist()
-        x = self.embed(x) + self.positional
+        x = self.embed(x)
         x = pack_padded_sequence(
             x,
             lengths,
