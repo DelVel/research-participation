@@ -12,4 +12,5 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from detr import DETR
+from image_side import ImageTrans
+from text_side import TextGRU

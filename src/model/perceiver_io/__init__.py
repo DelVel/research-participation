@@ -13,5 +13,5 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from .adapter import *
-from .model import PerceiverDecoder, PerceiverEncoder, PerceiverIO
+from adapter import *
+from model import PerceiverDecoder, PerceiverEncoder, PerceiverIO

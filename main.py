@@ -18,7 +18,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.plugins import DDPPlugin
 
-from src.module import COCOSystem
+from src import COCOSystem
 
 
 def main():

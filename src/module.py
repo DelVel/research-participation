@@ -25,8 +25,8 @@ from torchvision.transforms import Compose, ToTensor, Lambda, RandomCrop
 from src.dataset import train_root, val_root, train_caption, val_caption, \
     test_root
 from src.loss import ContrastiveLoss
-from src.model.image_side.ImageTransformer import ImageTrans
-from src.model.text_side import TextGRU
+from src.model import ImageTrans
+from src.model import TextGRU
 from src.vocab import vocab, padding_len, padding_idx, start_token, end_token
 
 
@@ -126,16 +126,16 @@ class COCOSystem(pl.LightningModule):
     @staticmethod
     def get_stage_dataloader_param(stage):
         if stage == 'train':
-            root = train_root
             ann_file = train_caption
+            root = train_root
             shuffle = True
         elif stage == 'val':
-            root = val_root
             ann_file = val_caption
+            root = val_root
             shuffle = False
         elif stage == 'test':
-            root = test_root
             ann_file = None
+            root = test_root
             shuffle = False
         else:
             raise ValueError(f"Unsupported stage: {stage}")
