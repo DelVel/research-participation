@@ -16,6 +16,7 @@
 import torch
 import torch.nn as nn
 from einops import repeat
+from torch.nn import ModuleList
 
 from .adapter import InputAdapter, OutputAdapter
 from .utils import Sequential
@@ -131,7 +132,6 @@ class PerceiverEncoder(nn.Module):
     def __init__(
             self,
             input_adapter: InputAdapter,
-            num_latents: int,
             num_latent_channels: int,
             num_layers: int = 3,
             num_cross_attention_heads: int = 4,
@@ -145,7 +145,6 @@ class PerceiverEncoder(nn.Module):
             input to an encoder input of shape (B, M, C_input) where B is the
             batch size, M the input sequence length and C_input the number of
             input channels.
-        :param num_latents: Number of latent variables (N).
         :param num_latent_channels: Number of latent channels (C_latent).
         :param num_layers: Number of encoder layers. An encoder layer is
             composed of a cross-attention layer and several self-attention
@@ -181,7 +180,23 @@ class PerceiverEncoder(nn.Module):
         self.layers = nn.ModuleList(
             create_perceiver_layer() for _ in range(num_layers))
 
-        # learnable initial latent vectors
+    def forward(self, latent, x):
+        b, *_ = x.shape
+
+        # encode task-specific input
+        x, pad_mask = self.input_adapter(x)
+
+        for a_layer in self.layers:
+            latent = a_layer(latent, x, pad_mask)
+
+        return latent
+
+
+class PerceiverEncoderPack(nn.Module):
+    def __init__(self, num_latents: int, num_latent_channels: int):
+        super().__init__()
+        self.num_latent_channels = num_latent_channels
+        self.encoders = ModuleList()
         self.latent = nn.Parameter(
             torch.empty(num_latents, num_latent_channels))
         self._init_parameters()
@@ -190,17 +205,56 @@ class PerceiverEncoder(nn.Module):
         with torch.no_grad():
             self.latent.normal_(0.0, 0.02).clamp_(-2.0, 2.0)
 
-    def forward(self, x, pad_mask=None):
-        b, *_ = x.shape
+    def add_encoder(self,
+                    input_adapter: InputAdapter,
+                    num_layers: int = 3,
+                    num_cross_attention_heads: int = 4,
+                    num_self_attention_heads: int = 4,
+                    num_self_attention_layers_per_block: int = 6,
+                    dropout: float = 0.0):
+        """Add a PerceiverEncoder to the pack.
 
-        # encode task-specific input
-        x = self.input_adapter(x)
+        :param input_adapter: Transforms and position-encodes task-specific
+            input to an encoder input of shape (B, M, C_input) where B is the
+            batch size, M the input sequence length and C_input the number of
+            input channels.
+        :param num_layers: Number of encoder layers. An encoder layer is
+            composed of a cross-attention layer and several self-attention
+            layers (= a self-attention block).
+        :param num_cross_attention_heads: Number of cross-attention heads.
+        :param num_self_attention_heads: Number of self-attention heads.
+        :param num_self_attention_layers_per_block: Number of self-attention
+            layers per self-attention block.
+        :param dropout: Dropout for self- and cross-attention layers and
+            residuals.
+        """
+        self.encoders.append(
+            PerceiverEncoder(
+                input_adapter=input_adapter,
+                num_latent_channels=self.num_latent_channels,
+                num_layers=num_layers,
+                num_cross_attention_heads=num_cross_attention_heads,
+                num_self_attention_heads=num_self_attention_heads,
+                num_self_attention_layers_per_block=
+                num_self_attention_layers_per_block,
+                dropout=dropout,
+            )
+        )
+
+    def forward(self, inputs):
+        """Forward pass.
+
+        :param inputs: An iterable of x.
+        :return: A list of latent vectors of shape (B, num_latents,
+            num_latent_channels).
+        """
+        b, *_ = inputs[0].shape
 
         # repeat initial latent vector along batch dimension
         x_latent = repeat(self.latent, "... -> b ...", b=b)
 
-        for a_layer in self.layers:
-            x_latent = a_layer(x_latent, x, pad_mask)
+        for i, encoder in enumerate(self.encoders):
+            x_latent = encoder(x_latent, inputs[i])
 
         return x_latent
 
@@ -253,11 +307,12 @@ class PerceiverDecoder(nn.Module):
 
 
 class PerceiverIO(Sequential):
-    def __init__(self, encoder: PerceiverEncoder, decoder: PerceiverDecoder):
+    def __init__(self, encoder: PerceiverEncoderPack,
+                 decoder: PerceiverDecoder):
         super().__init__(encoder, decoder)
 
     @property
-    def encoder(self):
+    def encoder_pack(self):
         return self[0]
 
     @property

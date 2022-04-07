@@ -12,5 +12,5 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from image_side import ImageTrans
-from text_side import TextGRU
+from .image_side import ImageTrans
+from .text_side import TextGRU

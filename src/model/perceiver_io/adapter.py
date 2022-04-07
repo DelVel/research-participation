@@ -13,10 +13,12 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+from abc import ABCMeta, abstractmethod
+
 import torch.nn as nn
 
 
-class InputAdapter(nn.Module):
+class InputAdapter(nn.Module, metaclass=ABCMeta):
     def __init__(self, num_input_channels):
         super().__init__()
         self._num_input_channels = num_input_channels
@@ -25,11 +27,17 @@ class InputAdapter(nn.Module):
     def num_input_channels(self):
         return self._num_input_channels
 
+    @abstractmethod
     def forward(self, x):
+        """Converts the given input to the format expected by the model.
+
+        :param x: A tensor of shape (batch_size, *).
+        :return: A tuple of (converted tensor, mask tensor | None).
+        """
         raise NotImplementedError()
 
 
-class OutputAdapter(nn.Module):
+class OutputAdapter(nn.Module, metaclass=ABCMeta):
     def __init__(self, output_shape):
         super().__init__()
         self._output_shape = output_shape
@@ -38,5 +46,6 @@ class OutputAdapter(nn.Module):
     def output_shape(self):
         return self._output_shape
 
+    @abstractmethod
     def forward(self, x):
         raise NotImplementedError()
