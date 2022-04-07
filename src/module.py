@@ -25,13 +25,14 @@ from torchvision.transforms import Compose, ToTensor, Lambda, RandomCrop
 from src.dataset import train_root, val_root, train_caption, val_caption, \
     test_root
 from src.loss import ContrastiveLoss
-from src.model import TextGRU, ImageTrans
+from src.model.image_side.ImageTransformer import ImageTrans
+from src.model.text_side import TextGRU
 from src.vocab import vocab, padding_len, padding_idx, start_token, end_token
 
 
 class COCOSystem(pl.LightningModule):
     @staticmethod
-    def add_model_specific_args(parent_parser):
+    def add_module_specific_args(parent_parser):
         parser = parent_parser.add_argument_group("COCOSystem")
         parser.add_argument("--num_worker", type=int, default=4)
         parser.add_argument("--persistent_workers", action="store_true")

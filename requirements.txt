@@ -1,9 +1,9 @@
 einops==0.4.1
-torch~=1.10.1+cu113
-torchvision~=0.11.2+cu113
+torch # ~=1.11.0+cu113
+torchvision # ~=0.12.0+cu113
 dill~=0.3.4
 nltk==3.7
-pycocotools~=2.0.3
+pycocotools==2.0.4
 tqdm==4.63.1
-wandb~=0.12.9
+wandb==0.12.11
 pytorch-lightning==1.6.0

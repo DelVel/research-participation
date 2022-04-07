@@ -11,15 +11,10 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
-import einops
 import torch
-import torch.nn as nn
-from torch import Tensor
-from torch.nn.utils.rnn import pack_padded_sequence
+from einops import einops
+from torch import nn
 from torchvision.models import resnet50
-
-from src.vocab import padding_idx, vocab_size
 
 
 class ImageTrans(nn.Module):
@@ -94,61 +89,4 @@ class ImageTrans(nn.Module):
                and x.shape[2] == \
                ImageTrans.seq_dim, 'ResNet feature shape error'
         x = self.linear(x)
-        return x
-
-
-class TextGRU(nn.Module):
-    @staticmethod
-    def add_module_specific_args(parent_parser):
-        parser = parent_parser.add_argument_group("TextGRU Config")
-        parser.add_argument('--text_embed_dim', type=int, default=256)
-        parser.add_argument('--gru_hidden_dim', type=int, default=512)
-        parser.add_argument('--gru_num_layers', type=int, default=1)
-        parser.add_argument('--gru_dropout', type=float, default=0)
-        return parent_parser
-
-    def __init__(self, args, *, out_dim):
-        super(TextGRU, self).__init__()
-        self.gru = nn.GRU(
-            input_size=args.text_embed_dim,
-            hidden_size=args.gru_hidden_dim,
-            num_layers=args.gru_num_layers,
-            dropout=args.gru_dropout,
-
-            bias=True,
-            batch_first=True,
-            bidirectional=True
-        )
-        self.embed = nn.Embedding(
-            num_embeddings=vocab_size,
-            embedding_dim=args.text_embed_dim,
-            padding_idx=padding_idx
-        )
-        self.linear_sequential = nn.Sequential(
-            nn.Linear(2 * args.gru_num_layers * args.gru_hidden_dim, 2048),
-            nn.ReLU(),
-            nn.Linear(2048, out_dim)
-        )
-
-    def forward(self, x: Tensor):
-        x = self._preprocess_sequence(x)
-        x = self._pass_gru(x)
-        x = self.linear_sequential(x)
-        return x
-
-    def _pass_gru(self, x):
-        _, x = self.gru(x)
-        x = einops.rearrange(x, 'd_num b model_h -> b (d_num model_h)')
-        return x
-
-    def _preprocess_sequence(self, x):
-        assert padding_idx == 0, 'count_nonzero assumes padding_idx is 0.'
-        lengths = x.count_nonzero(dim=-1).tolist()
-        x = self.embed(x)
-        x = pack_padded_sequence(
-            x,
-            lengths,
-            batch_first=True,
-            enforce_sorted=False
-        )
         return x
