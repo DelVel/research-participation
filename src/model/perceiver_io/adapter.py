@@ -14,8 +14,10 @@
 #  limitations under the License.
 
 from abc import ABCMeta, abstractmethod
+from typing import Tuple, Any, Optional
 
 import torch.nn as nn
+from torch import Tensor
 
 
 class InputAdapter(nn.Module, metaclass=ABCMeta):
@@ -28,10 +30,10 @@ class InputAdapter(nn.Module, metaclass=ABCMeta):
         return self._num_input_channels
 
     @abstractmethod
-    def forward(self, x):
+    def forward(self, x: Any) -> Tuple[Tensor, Optional[Tensor]]:
         """Converts the given input to the format expected by the model.
 
-        :param x: A tensor of shape (batch_size, *).
+        :param x: A domain-specific input of cardinality batch_size.
         :return: A tuple of (converted tensor, mask tensor | None).
         """
         raise NotImplementedError()

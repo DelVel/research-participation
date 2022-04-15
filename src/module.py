@@ -12,33 +12,19 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import random
-
 import einops
-import nltk
-import pytorch_lightning as pl
 import torch
-from torch.utils.data import DataLoader
-from torchvision.datasets import CocoCaptions
-from torchvision.transforms import Compose, ToTensor, Lambda, RandomCrop
 
-from src.dataset import train_root, val_root, train_caption, val_caption, \
-    test_root
+from src.datamodule import COCODatasetSystem
 from src.loss import ContrastiveLoss
 from src.model import ImageTrans
 from src.model import TextGRU
-from src.vocab import vocab, padding_len, padding_idx, start_token, end_token
 
 
-class COCOSystem(pl.LightningModule):
+class COCOSystem(COCODatasetSystem):
     @staticmethod
     def add_module_specific_args(parent_parser):
-        parser = parent_parser.add_argument_group("COCOSystem")
-        parser.add_argument("--num_worker", type=int, default=4)
-        parser.add_argument("--persistent_workers", action="store_true")
-        parser.add_argument("--pin_memory", action="store_true")
-        parser.add_argument('--batch_size', type=int, default=32)
-
+        super().add_module_specific_args(parent_parser)
         parser = parent_parser.add_argument_group("COCOModel")
         parser.add_argument('--latent_dim', type=int, default=256)
 
@@ -85,75 +71,8 @@ class COCOSystem(pl.LightningModule):
         optimizer = torch.optim.Adam(self.parameters())
         return optimizer
 
-    def train_dataloader(self):
-        return self.get_dataloader('train')
-
-    def val_dataloader(self):
-        return self.get_dataloader('val')
-
-    def test_dataloader(self):
-        return self.get_dataloader('test')
-
-    def get_dataloader(self, stage):
-        ann_file, root, shuffle = self.get_stage_dataloader_param(stage)
-        dataset = CocoCaptions(
-            root=root,
-            annFile=ann_file,
-            transform=Compose(
-                [RandomCrop(224, pad_if_needed=True), ToTensor()]),
-            target_transform=Lambda(self.word2idx)
-        )
-        parser = self.hparams.parser
-        return DataLoader(
-            dataset,
-            shuffle=shuffle,
-            batch_size=parser.batch_size,
-            num_workers=parser.num_worker,
-            persistent_workers=parser.persistent_workers,
-            pin_memory=parser.pin_memory
-        )
-
-    def predict_dataloader(self):
-        # Intentionally empty; No prediction for this model
-        pass
-
     def _loss_of_batch(self, batch):
         img, text = batch
         img, text = self.forward(img, text)
         loss = self.loss(img, text)
         return loss
-
-    @staticmethod
-    def get_stage_dataloader_param(stage):
-        if stage == 'train':
-            ann_file = train_caption
-            root = train_root
-            shuffle = True
-        elif stage == 'val':
-            ann_file = val_caption
-            root = val_root
-            shuffle = False
-        elif stage == 'test':
-            ann_file = None
-            root = test_root
-            shuffle = False
-        else:
-            raise ValueError(f"Unsupported stage: {stage}")
-        return ann_file, root, shuffle
-
-    @staticmethod
-    def word2idx(words):
-        tensor_list = []
-        for word in words:
-            tokenize = nltk.tokenize.word_tokenize(word.lower())
-            start_end = [start_token] + tokenize + [end_token]
-            idx_list = [vocab(token) for token in start_end]
-            padding_count = (padding_len - len(idx_list))
-            assert padding_count >= 0, f'Exceeded maximum padding length: ' \
-                                       f'{len(idx_list)} > {padding_len}'
-            idx_list += [padding_idx] * padding_count
-            tensor = torch.LongTensor(idx_list)
-            tensor_list.append(tensor)
-        tensor_list = random.sample(tensor_list, 5)
-        sequence = torch.stack(tensor_list)
-        return sequence

@@ -16,7 +16,7 @@ from einops import einops
 from torch import nn, Tensor
 from torch.nn.utils.rnn import pack_padded_sequence
 
-from src.vocab import vocab_size, padding_idx
+from src.datamodule.vocab import vocab_size, padding_idx
 
 
 class TextGRU(nn.Module):
