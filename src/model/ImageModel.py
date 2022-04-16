@@ -12,5 +12,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from .ImageModel import ImageModel
-from .TextModel import TextModel
+from .detr import ImageTrans
+
+
+class ImageModel(ImageTrans):
+    pass

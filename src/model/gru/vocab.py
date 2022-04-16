@@ -20,7 +20,7 @@ import nltk
 from pycocotools.coco import COCO
 from tqdm import tqdm
 
-from src.datamodule.dataset import train_caption, val_caption
+from src.datamodule.COCODataModule import train_caption, val_caption
 
 
 class Vocabulary:

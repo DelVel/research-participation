@@ -16,20 +16,20 @@ import einops
 import torch
 
 from src.datamodule import COCODatasetSystem
+from src.model import ImageModel
+from src.model import TextModel
 from src.loss import ContrastiveLoss
-from src.model import ImageTrans
-from src.model import TextGRU
 
 
 class COCOSystem(COCODatasetSystem):
     @staticmethod
     def add_module_specific_args(parent_parser):
-        super().add_module_specific_args(parent_parser)
+        COCODatasetSystem.add_module_specific_args(parent_parser)
         parser = parent_parser.add_argument_group("COCOModel")
         parser.add_argument('--latent_dim', type=int, default=256)
 
-        TextGRU.add_module_specific_args(parent_parser)
-        ImageTrans.add_module_specific_args(parent_parser)
+        ImageModel.add_module_specific_args(parent_parser)
+        TextModel.add_module_specific_args(parent_parser)
         ContrastiveLoss.add_module_specific_args(parent_parser)
 
         return parent_parser
@@ -41,8 +41,8 @@ class COCOSystem(COCODatasetSystem):
         assert latent_dim % 2 == 0, "latent_dim must be even"
         self.save_hyperparameters()
 
-        self.image_trans = ImageTrans(parser, out_dim=latent_dim)
-        self.gru = TextGRU(parser, out_dim=latent_dim)
+        self.image_trans = ImageModel(parser, out_dim=latent_dim)
+        self.gru = TextModel(parser, out_dim=latent_dim)
 
         self.loss = ContrastiveLoss(parser)
 

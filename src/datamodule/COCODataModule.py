@@ -14,16 +14,21 @@
 
 import random
 
-import nltk
 import pytorch_lightning as pl
-import torch
 from torch.utils.data import DataLoader
 from torchvision.datasets import CocoCaptions
 from torchvision.transforms import Compose, RandomCrop, ToTensor, Lambda
 
-from src.datamodule.dataset import train_caption, train_root, val_caption, val_root, \
-    test_root
-from src.datamodule.vocab import start_token, end_token, vocab, padding_len, padding_idx
+dataset_root = './dataset/coco2014'
+train_val_annotations_root = f'{dataset_root}/annotations_trainval2014' \
+                             f'/annotations'
+train_caption = f'{train_val_annotations_root}/captions_train2014.json'
+val_caption = f'{train_val_annotations_root}/captions_val2014.json'
+test_info = f'{dataset_root}/image_info_test2014/annotations' \
+            f'/image_info_test2014.json'
+train_root = f'{dataset_root}/train2014'
+val_root = f'{dataset_root}/val2014'
+test_root = f'{dataset_root}/test2014'
 
 
 class COCODatasetSystem(pl.LightningModule):
@@ -38,6 +43,7 @@ class COCODatasetSystem(pl.LightningModule):
         return parent_parser
 
     def get_dataloader(self, stage):
+        parser = self.hparams.parser
         ann_file, root, shuffle = self.get_stage_dataloader_param(stage)
         dataset = CocoCaptions(
             root=root,
@@ -46,7 +52,6 @@ class COCODatasetSystem(pl.LightningModule):
                 [RandomCrop(224, pad_if_needed=True), ToTensor()]),
             target_transform=Lambda(self.word2idx)
         )
-        parser = self.hparams.parser
         return DataLoader(
             dataset,
             shuffle=shuffle,
@@ -89,17 +94,5 @@ class COCODatasetSystem(pl.LightningModule):
 
     @staticmethod
     def word2idx(words):
-        tensor_list = []
-        for word in words:
-            tokenize = nltk.tokenize.word_tokenize(word.lower())
-            start_end = [start_token] + tokenize + [end_token]
-            idx_list = [vocab(token) for token in start_end]
-            padding_count = (padding_len - len(idx_list))
-            assert padding_count >= 0, f'Exceeded maximum padding length: ' \
-                                       f'{len(idx_list)} > {padding_len}'
-            idx_list += [padding_idx] * padding_count
-            tensor = torch.LongTensor(idx_list)
-            tensor_list.append(tensor)
-        tensor_list = random.sample(tensor_list, 5)
-        sequence = torch.stack(tensor_list)
-        return sequence
+        chosen_list = random.sample(words, 5)
+        return chosen_list
