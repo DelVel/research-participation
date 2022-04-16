@@ -27,11 +27,10 @@ def main():
     if args.strategy == 'ddp':
         override['strategy'] = DDPPlugin(find_unused_parameters=False)
     if args.logger:
-        override['logger'] = WandbLogger(project='coco-system')
-    trainer = pl.Trainer.from_argparse_args(
-        args,
-        **override
-    )
+        wandb_logger = WandbLogger(project='coco-system',
+                                   name=COCOSystem.get_run_name())
+        override['logger'] = wandb_logger
+    trainer = pl.Trainer.from_argparse_args(args, **override)
     model = COCOSystem(args)
     trainer.fit(model)
 

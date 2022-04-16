@@ -11,26 +11,38 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+import time
 
 import einops
 import torch
 
 from src.datamodule import COCODatasetSystem
-from src.model import ImageModel
-from src.model import TextModel
 from src.loss import ContrastiveLoss
+from src.model import ImageTrans, TextGRU
 
 
 class COCOSystem(COCODatasetSystem):
-    @staticmethod
-    def add_module_specific_args(parent_parser):
+    image_model_cls = ImageTrans
+    text_model_cls = TextGRU
+    loss_func_cls = ContrastiveLoss
+
+    @classmethod
+    def get_run_name(cls):
+        image_model_name = cls.image_model_cls.__name__
+        text_model_name = cls.text_model_cls.__name__
+        loss_func_name = cls.loss_func_cls.__name__
+        rtime = time.strftime("%Y%m%d-%H%M%S")
+        return f"{image_model_name}-{text_model_name}-{loss_func_name}-{rtime}"
+
+    @classmethod
+    def add_module_specific_args(cls, parent_parser):
         COCODatasetSystem.add_module_specific_args(parent_parser)
         parser = parent_parser.add_argument_group("COCOModel")
         parser.add_argument('--latent_dim', type=int, default=256)
 
-        ImageModel.add_module_specific_args(parent_parser)
-        TextModel.add_module_specific_args(parent_parser)
-        ContrastiveLoss.add_module_specific_args(parent_parser)
+        cls.image_model_cls.add_module_specific_args(parent_parser)
+        cls.text_model_cls.add_module_specific_args(parent_parser)
+        cls.loss_func_cls.add_module_specific_args(parent_parser)
 
         return parent_parser
 
@@ -41,21 +53,22 @@ class COCOSystem(COCODatasetSystem):
         assert latent_dim % 2 == 0, "latent_dim must be even"
         self.save_hyperparameters()
 
-        self.image_trans = ImageModel(parser, out_dim=latent_dim)
-        self.gru = TextModel(parser, out_dim=latent_dim)
+        self.img_model = self.image_model_cls(parser, out_dim=latent_dim)
+        self.txt_model = self.text_model_cls(parser, out_dim=latent_dim)
 
-        self.loss = ContrastiveLoss(parser)
+        self.loss = self.loss_func_cls(parser)
 
     def forward(self, img, text):
-        img = self.image_trans(img)
+        img = self.img_model(img)
         text = self._process_text(text)
         return img, text
 
     def _process_text(self, text):
-        g_dim = text.shape[1]
-        text = einops.rearrange(text, 'b g l -> (b g) l')
-        text = self.gru(text)
-        text = einops.rearrange(text, '(b g) l -> b g l', g=g_dim)
+        # text is 5-tuple with batch_size len list.
+        g_dim = len(text)
+        text = [item for sublist in text for item in sublist]
+        text = self.txt_model(text)
+        text = einops.rearrange(text, '(g b) l -> b g l', g=g_dim)
         return text
 
     def training_step(self, batch, batch_idx):

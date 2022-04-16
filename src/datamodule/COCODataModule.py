@@ -19,7 +19,7 @@ from torch.utils.data import DataLoader
 from torchvision.datasets import CocoCaptions
 from torchvision.transforms import Compose, RandomCrop, ToTensor, Lambda
 
-dataset_root = './dataset/coco2014'
+dataset_root = 'D:/dataset/coco2014'
 train_val_annotations_root = f'{dataset_root}/annotations_trainval2014' \
                              f'/annotations'
 train_caption = f'{train_val_annotations_root}/captions_train2014.json'
@@ -34,7 +34,7 @@ test_root = f'{dataset_root}/test2014'
 class COCODatasetSystem(pl.LightningModule):
     @staticmethod
     def add_module_specific_args(parent_parser):
-        parser = parent_parser.add_argument_group("COCOSystem")
+        parser = parent_parser.add_argument_group("COCODatasetSystem")
         parser.add_argument('--batch_size', type=int, default=32)
         parser.add_argument("--num_worker", type=int, default=4)
         parser.add_argument("--persistent_workers", action="store_true")
@@ -50,7 +50,7 @@ class COCODatasetSystem(pl.LightningModule):
             annFile=ann_file,
             transform=Compose(
                 [RandomCrop(224, pad_if_needed=True), ToTensor()]),
-            target_transform=Lambda(self.word2idx)
+            target_transform=Lambda(self.sel5sentence)
         )
         return DataLoader(
             dataset,
@@ -93,6 +93,5 @@ class COCODatasetSystem(pl.LightningModule):
         return ann_file, root, shuffle
 
     @staticmethod
-    def word2idx(words):
-        chosen_list = random.sample(words, 5)
-        return chosen_list
+    def sel5sentence(words):
+        return random.sample(words, 5)

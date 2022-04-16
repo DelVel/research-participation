@@ -12,8 +12,70 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from .gru import TextGRU
+
+from einops import einops
+from torch import nn, Tensor
+from torch.nn.utils.rnn import pack_padded_sequence
+from transformers import BertTokenizer
 
 
-class TextModel(TextGRU):
-    pass
+class TextGRU(nn.Module):
+    @staticmethod
+    def add_module_specific_args(parent_parser):
+        parser = parent_parser.add_argument_group("TextGRU Config")
+        parser.add_argument('--text_embed_dim', type=int, default=256)
+        parser.add_argument('--gru_hidden_dim', type=int, default=512)
+        parser.add_argument('--gru_num_layers', type=int, default=1)
+        parser.add_argument('--gru_dropout', type=float, default=0)
+        return parent_parser
+
+    def __init__(self, args, *, out_dim):
+        super(TextGRU, self).__init__()
+        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.gru = nn.GRU(
+            input_size=args.text_embed_dim,
+            hidden_size=args.gru_hidden_dim,
+            num_layers=args.gru_num_layers,
+            dropout=args.gru_dropout,
+
+            bias=True,
+            batch_first=True,
+            bidirectional=True
+        )
+        self.embed = nn.Embedding(
+            num_embeddings=self.tokenizer.vocab_size,
+            embedding_dim=args.text_embed_dim,
+            padding_idx=self.tokenizer.pad_token_id
+        )
+        self.linear_sequential = nn.Sequential(
+            nn.Linear(2 * args.gru_num_layers * args.gru_hidden_dim, 2048),
+            nn.ReLU(),
+            nn.Linear(2048, out_dim)
+        )
+
+    def forward(self, x: Tensor):
+        x = self._preprocess_sequence(x)
+        x = self._pass_gru(x)
+        x = self.linear_sequential(x)
+        return x
+
+    def _pass_gru(self, x):
+        _, x = self.gru(x)
+        x = einops.rearrange(x, 'd_num b model_h -> b (d_num model_h)')
+        return x
+
+    def _preprocess_sequence(self, x):
+        assert self.tokenizer.pad_token_id == 0, "pad_token_id should be 0"
+        x = self.tokenizer(x, padding=True, return_tensors='pt')
+        x = x['input_ids']
+        device = self.embed.weight.device
+        x = x.to(device)
+        lengths = x.count_nonzero(dim=-1).tolist()
+        x = self.embed(x)
+        x = pack_padded_sequence(
+            x,
+            lengths,
+            batch_first=True,
+            enforce_sorted=False
+        )
+        return x
