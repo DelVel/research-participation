@@ -79,7 +79,6 @@ class ContrastiveLoss(InnerLoss):
     def __init__(self, args):
         super().__init__()
         self.temperature = args.loss_temperature
-        self.mask_mat = None
 
     def post_forward(self, img, text):
         self.covar = torch.logsumexp(self.temperature * self.covar, dim=1)
@@ -110,9 +109,7 @@ class ContrastiveLoss(InnerLoss):
         return loss
 
     def _get_coefficient_mat(self):
-        if self.mask_mat is None:
-            b = self.batch
-            tensor = torch.ones(b, b) - b * torch.eye(b)
-            tensor /= b * (b - 1)
-            self.mask_mat = tensor.to(self.covar.device)
-        return self.mask_mat
+        b = self.batch
+        tensor = torch.ones(b, b) - b * torch.eye(b)
+        tensor /= b * (b - 1)
+        return tensor.to(self.covar.device)
