@@ -11,15 +11,24 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
+import random
 
 from einops import einops
 from torch import nn, Tensor
 from torch.nn.utils.rnn import pack_padded_sequence
+from torchvision.transforms import Lambda
 from transformers import BertTokenizer
 
 
 class TextGRU(nn.Module):
+    def transform(self, x):
+        x = random.sample(x, 5)
+        x = self.tokenizer(x, padding='max_length', return_tensors='pt')
+        return x['input_ids']
+
+    def get_transform(self):
+        return Lambda(self.transform)
+
     @staticmethod
     def add_module_specific_args(parent_parser):
         parser = parent_parser.add_argument_group("TextGRU Config")
@@ -65,11 +74,7 @@ class TextGRU(nn.Module):
         return x
 
     def _preprocess_sequence(self, x):
-        assert self.tokenizer.pad_token_id == 0, "pad_token_id should be 0"
-        x = self.tokenizer(x, padding=True, return_tensors='pt')
-        x = x['input_ids']
-        device = self.embed.weight.device
-        x = x.to(device)
+        assert self.tokenizer.pad_token_id == 0, "Padding token should be 0"
         lengths = x.count_nonzero(dim=-1).tolist()
         x = self.embed(x)
         x = pack_padded_sequence(

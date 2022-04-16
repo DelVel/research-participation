@@ -46,6 +46,12 @@ class COCOSystem(COCODatasetSystem):
 
         return parent_parser
 
+    def get_image_transform(self):
+        return self.img_model.get_transform()
+
+    def get_text_transform(self):
+        return self.txt_model.get_transform()
+
     # noinspection PyUnusedLocal
     def __init__(self, parser):
         super().__init__()
@@ -64,11 +70,10 @@ class COCOSystem(COCODatasetSystem):
         return img, text
 
     def _process_text(self, text):
-        # text is 5-tuple with batch_size len list.
-        g_dim = len(text)
-        text = [item for sublist in text for item in sublist]
+        g_dim = text.shape[1]
+        text = einops.rearrange(text, 'b g l -> (b g) l')
         text = self.txt_model(text)
-        text = einops.rearrange(text, '(g b) l -> b g l', g=g_dim)
+        text = einops.rearrange(text, '(b g) l -> b g l', g=g_dim)
         return text
 
     def training_step(self, batch, batch_idx):

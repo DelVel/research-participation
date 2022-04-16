@@ -17,11 +17,16 @@ import torch
 from einops import einops
 from torch import nn
 from torchvision.models import resnet50
+from torchvision.transforms import Compose, RandomCrop, ToTensor
 
 
 class ImageTrans(nn.Module):
     seq_len = 49
     seq_dim = 2048
+
+    @staticmethod
+    def get_transform():
+        return Compose([RandomCrop(224, pad_if_needed=True), ToTensor()])
 
     @staticmethod
     def add_module_specific_args(parent_parser):

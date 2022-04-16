@@ -12,12 +12,11 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-import random
+from abc import abstractmethod, ABCMeta
 
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 from torchvision.datasets import CocoCaptions
-from torchvision.transforms import Compose, RandomCrop, ToTensor, Lambda
 
 dataset_root = 'D:/dataset/coco2014'
 train_val_annotations_root = f'{dataset_root}/annotations_trainval2014' \
@@ -31,7 +30,7 @@ val_root = f'{dataset_root}/val2014'
 test_root = f'{dataset_root}/test2014'
 
 
-class COCODatasetSystem(pl.LightningModule):
+class COCODatasetSystem(pl.LightningModule, metaclass=ABCMeta):
     @staticmethod
     def add_module_specific_args(parent_parser):
         parser = parent_parser.add_argument_group("COCODatasetSystem")
@@ -48,9 +47,8 @@ class COCODatasetSystem(pl.LightningModule):
         dataset = CocoCaptions(
             root=root,
             annFile=ann_file,
-            transform=Compose(
-                [RandomCrop(224, pad_if_needed=True), ToTensor()]),
-            target_transform=Lambda(self.sel5sentence)
+            transform=self.get_image_transform(),
+            target_transform=self.get_text_transform()
         )
         return DataLoader(
             dataset,
@@ -74,6 +72,14 @@ class COCODatasetSystem(pl.LightningModule):
         # Intentionally empty; No prediction for this model
         pass
 
+    @abstractmethod
+    def get_image_transform(self):
+        pass
+
+    @abstractmethod
+    def get_text_transform(self):
+        pass
+
     @staticmethod
     def get_stage_dataloader_param(stage):
         if stage == 'train':
@@ -91,7 +97,3 @@ class COCODatasetSystem(pl.LightningModule):
         else:
             raise ValueError(f"Unsupported stage: {stage}")
         return ann_file, root, shuffle
-
-    @staticmethod
-    def sel5sentence(words):
-        return random.sample(words, 5)
