@@ -15,7 +15,7 @@
 from abc import ABCMeta, abstractmethod
 
 import torch
-from einops import reduce
+from einops import reduce, rearrange, repeat
 from torch.nn import Module
 from torch.nn.functional import normalize
 
@@ -79,11 +79,10 @@ class ContrastiveLoss(InnerLoss):
     def __init__(self, args):
         super().__init__()
         self.temperature = args.loss_temperature
+        self.mask_mat = None
 
     def post_forward(self, img, text):
-        self.covar = reduce(self.covar, 'bi i bt t -> bi bt t', 'max')
-        self.covar *= self.temperature
-        self.covar = self.covar.exp()
+        self.covar = torch.logsumexp(self.temperature * self.covar, dim=1)
         return self._sum_up_loss()
 
     def _sum_up_loss(self):
@@ -93,19 +92,27 @@ class ContrastiveLoss(InnerLoss):
         return loss
 
     def _i2t(self):
-        nominator = self.covar
-        denominator = reduce(self.covar, 'bi bt t -> bi 1 1', 'sum')
-        fraction = nominator / denominator
-        log = fraction.log()
-        mean = reduce(log, 'bi bt t -> bi bt', 'mean')
-        sigma = mean.diagonal().sum()
-        return -sigma
+        t_dim = self.covar.shape[2]
+        temp = rearrange(self.covar, 'bi bt t -> bi (bt t)')
+        temp = temp.softmax(dim=1)
+        temp = temp / self.temperature
+        temp = repeat(temp, 'bi (bt t) -> bi bt t', t=t_dim)
+        mean = reduce(temp, 'bi bt t -> bi bt', 'mean')
+        loss = (mean * self._get_coefficient_mat()).sum()
+        return loss
 
     def _t2i(self):
-        nominator = self.covar
-        denominator = reduce(self.covar, 'bi bt t -> 1 bt t', 'sum')
-        fraction = nominator / denominator
-        log = fraction.log()
-        mean = reduce(log, 'bi bt t -> bi bt', 'sum')
-        sigma = mean.diagonal().sum()
-        return -sigma
+        temp = self.covar
+        temp = temp.softmax(dim=0)
+        temp = temp / self.temperature
+        mean = reduce(temp, 'bi bt t -> bi bt', 'sum')
+        loss = (mean * self._get_coefficient_mat()).sum()
+        return loss
+
+    def _get_coefficient_mat(self):
+        if self.mask_mat is None:
+            b = self.batch
+            tensor = torch.ones(b, b) - b * torch.eye(b)
+            tensor /= b * (b - 1)
+            self.mask_mat = tensor.to(self.covar.device)
+        return self.mask_mat
