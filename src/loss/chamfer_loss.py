@@ -71,12 +71,4 @@ class ChamferTripletLoss(nn.Module):
         current_margins = an_dists - ap_dists
         violation = current_margins + self.margin
         loss = f.relu(violation)
-        loss_dict = {
-            "loss": {
-                "losses": loss,
-                "indices": indices_tuple,
-                "reduction_type": "triplet",
-            }
-        }
-        reducer = self.reducer(loss_dict, embeddings, labels)
-        return reducer
+        return loss.mean()
