@@ -18,14 +18,14 @@ import einops
 import torch
 
 from src.datamodule import COCODatasetSystem
-from src.loss import ContrastiveLoss
+from src.loss import ContrastiveLoss, ChamferTripletLoss
 from src.model import ImageTrans, TextGRU
 
 
 class COCOSystem(COCODatasetSystem):
     image_model_cls = ImageTrans
     text_model_cls = TextGRU
-    loss_func_cls = ContrastiveLoss
+    loss_func_cls = ChamferTripletLoss
 
     @classmethod
     def get_run_name(cls):
