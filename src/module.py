@@ -18,7 +18,7 @@ import einops
 import torch
 
 from src.datamodule import COCODatasetSystem
-from src.loss import ContrastiveLoss, ChamferTripletLoss
+from src.loss import ChamferTripletLoss
 from src.model import ImageTrans, TextGRU
 
 
@@ -87,7 +87,7 @@ class COCOSystem(COCODatasetSystem):
         self.log("val_loss", loss)
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters())
+        optimizer = torch.optim.Adadelta(self.parameters())
         return optimizer
 
     def _loss_of_batch(self, batch):
