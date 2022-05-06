@@ -1,0 +1,3 @@
+<component name="DependencyValidationManager">
+  <scope name="KevinMusgrave/pytorch-metric-learning" pattern="file[research-participation]:src/third_party//*" />
+</component>

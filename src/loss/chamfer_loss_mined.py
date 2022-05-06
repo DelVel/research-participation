@@ -13,26 +13,28 @@
 #  limitations under the License.
 
 import torch
-import torch.nn.functional as f
 from einops import rearrange
-from pytorch_metric_learning.reducers import AvgNonZeroReducer
-from pytorch_metric_learning.utils import loss_and_miner_utils as lmu
+from pytorch_metric_learning.distances import BaseDistance
 from torch import nn
 
 from src.functional import smooth_chamfer_matching
+from src.third_party import TripletMarginLoss, TripletMarginMiner
 
 
-class ChamferSimilarity:
-    def __init__(self, temp=1.0):
+class ChamferSimilarity(BaseDistance):
+    def __init__(self, temp, **kwargs):
+        super().__init__(is_inverted=True, **kwargs)
         self.temp = temp
 
-    def __call__(self, query_emb, ref_emb):
-        query_emb = f.normalize(query_emb, dim=-1)
-        ref_emb = f.normalize(ref_emb, dim=-1)
+    def compute_mat(self, query_emb, ref_emb):
         return smooth_chamfer_matching(query_emb, ref_emb, self.temp)
 
+    def pairwise_distance(self, query_emb, ref_emb):
+        return smooth_chamfer_matching(query_emb, ref_emb,
+                                       self.temp).diagonal()
 
-class ChamferTripletLoss(nn.Module):
+
+class ChamferTripletMinedLoss(nn.Module):
     @staticmethod
     def add_module_specific_args(parent_parser):
         parser = parent_parser.add_argument_group("ChamferTripletLoss")
@@ -44,7 +46,11 @@ class ChamferTripletLoss(nn.Module):
         super().__init__()
         self.margin = args.loss_margin
         self.similarity = ChamferSimilarity(temp=args.loss_temperature)
-        self.reducer = AvgNonZeroReducer()
+        self.loss = TripletMarginLoss(distance=self.similarity,
+                                      margin=self.margin)
+        self.miner = TripletMarginMiner(distance=self.similarity,
+                                        margin=self.margin,
+                                        type_of_triplets='hard')
 
     def forward(self, img_emb, txt_emb):
         b_size = img_emb.shape[0]
@@ -53,22 +59,8 @@ class ChamferTripletLoss(nn.Module):
         img_label = torch.arange(b_size, device=img_emb.device)
         txt_label = torch.arange(b_size, device=img_emb.device) \
             .repeat_interleave(t_size)
-        i2t_loss = self.compute_loss(img_emb, img_label, txt_emb, txt_label)
-        t2i_loss = self.compute_loss(txt_emb, txt_label, img_emb, img_label)
-        return (i2t_loss + t2i_loss) / 2
-
-    def compute_loss(self, embeddings, labels, ref_emb, ref_labels):
-        indices_tuple = lmu.convert_to_triplets(
-            None, labels, ref_labels,
-            t_per_anchor='all'
-        )
-        anchor_idx, positive_idx, negative_idx = indices_tuple
-        if len(anchor_idx) == 0:
-            return self.zero_losses()
-        mat = self.similarity(embeddings, ref_emb)
-        ap_dists = mat[anchor_idx, positive_idx]
-        an_dists = mat[anchor_idx, negative_idx]
-        current_margins = an_dists - ap_dists
-        violation = current_margins + self.margin
-        loss = f.relu(violation)
-        return loss.mean()
+        i_t_p = self.miner(img_emb, img_label, txt_emb, txt_label)
+        t_i_p = self.miner(txt_emb, txt_label, img_emb, img_label)
+        i_t_l = self.loss(img_emb, img_label, i_t_p, txt_emb, txt_label)
+        t_i_l = self.loss(txt_emb, txt_label, t_i_p, img_emb, img_label)
+        return (i_t_l + t_i_l) / 2

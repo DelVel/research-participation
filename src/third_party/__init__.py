@@ -1,4 +1,5 @@
-#  Copyright 2022 Taegyu Park
+#  Copyright 2022 https://github.com/KevinMusgrave/pytorch-metric-learning
+#  Modified by Taegyu Park
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -12,6 +13,5 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from .chamfer_loss import ChamferTripletLoss
-from .chamfer_loss_mined import ChamferTripletMinedLoss
-from .loss import ContrastiveLoss
+from src.third_party.triplet_margin_loss import TripletMarginLoss
+from src.third_party.triplet_margin_miner import TripletMarginMiner
