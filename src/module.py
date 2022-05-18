@@ -16,6 +16,7 @@ import time
 
 import einops
 import torch
+from einops import rearrange
 
 from src.datamodule import COCODatasetSystem
 from src.loss import ChamferTripletMinedLoss
@@ -83,8 +84,29 @@ class COCOSystem(COCODatasetSystem):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        loss = self._loss_of_batch(batch)
+        img, text = batch
+        img, text = self.forward(img, text)
+        loss = self.loss(img, text)
         self.log("val_loss", loss)
+        return img.detach().cpu(), text.detach().cpu()
+
+    def validation_epoch_end(self, outputs):
+        imgs, txts = zip(*outputs)
+        print("Initiating I2T ranking...")
+        self._rank_i2t(imgs, txts)
+        print("Initiating T2I ranking...")
+        self._rank_t2i(imgs, txts)
+
+    def _rank_i2t(self, imgs, txts):
+        txt = torch.cat(txts, dim=0)
+        txt = rearrange(txt, 'b g ... -> (b g) ...')
+        self.a
+        # TODO
+
+    def _rank_t2i(self, imgs, txts):
+        img = torch.cat(imgs, dim=0)
+        self.a
+        # TODO
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adadelta(self.parameters())
