@@ -12,6 +12,4 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from .chamfer_triplet_loss import ChamferTripletLoss
-from .chamfer_triplet_mined_loss import ChamferTripletMinedLoss
-from .loss import ContrastiveLoss
+from src.similarity.chamfer_similarity import ChamferSimilarity
