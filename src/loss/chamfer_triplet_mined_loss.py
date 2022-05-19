@@ -16,7 +16,6 @@ import torch
 from einops import rearrange
 from torch import nn
 
-from src.similarity import ChamferSimilarity
 from src.third_party import TripletMarginLoss, TripletMarginMiner
 
 
@@ -28,13 +27,12 @@ class ChamferTripletMinedLoss(nn.Module):
         parser.add_argument('--loss_temperature', type=float, default=1.0)
         return parent_parser
 
-    def __init__(self, args):
+    def __init__(self, args, similarity):
         super().__init__()
         self.margin = args.loss_margin
-        self.similarity = ChamferSimilarity(temp=args.loss_temperature)
-        self.loss = TripletMarginLoss(distance=self.similarity,
+        self.loss = TripletMarginLoss(distance=similarity,
                                       margin=self.margin)
-        self.miner = TripletMarginMiner(distance=self.similarity,
+        self.miner = TripletMarginMiner(distance=similarity,
                                         margin=self.margin,
                                         type_of_triplets='hard')
 

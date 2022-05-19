@@ -17,9 +17,15 @@ from src.functional import smooth_chamfer_matching
 
 
 class ChamferSimilarity(BaseDistance):
-    def __init__(self, temp, **kwargs):
-        super().__init__(is_inverted=True, **kwargs)
-        self.temp = temp
+    @classmethod
+    def add_module_specific_args(cls, parent_parser):
+        parser = parent_parser.add_argument_group("ChamferSimilarity")
+        parser.add_argument('--sim_temp', type=float, default=1.0)
+        return parent_parser
+
+    def __init__(self, args):
+        super().__init__(is_inverted=True)
+        self.temp = args.sim_temp
 
     def compute_mat(self, query_emb, ref_emb):
         return smooth_chamfer_matching(query_emb, ref_emb, self.temp)

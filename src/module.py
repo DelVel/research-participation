@@ -21,31 +21,34 @@ from einops import rearrange
 from src.datamodule import COCODatasetSystem
 from src.loss import ChamferTripletMinedLoss
 from src.model import ImageTrans, TextGRU
+from src.similarity import ChamferSimilarity
 
 
 class COCOSystem(COCODatasetSystem):
     image_model_cls = ImageTrans
     text_model_cls = TextGRU
+    similarity_cls = ChamferSimilarity
     loss_func_cls = ChamferTripletMinedLoss
 
     @classmethod
     def get_run_name(cls):
         image_model_name = cls.image_model_cls.__name__
         text_model_name = cls.text_model_cls.__name__
+        similarity_name = cls.similarity_cls.__name__
         loss_func_name = cls.loss_func_cls.__name__
         rtime = time.strftime("%Y%m%d-%H%M%S")
-        return f"{image_model_name}-{text_model_name}-{loss_func_name}-{rtime}"
+        return f"{image_model_name}-{text_model_name}-{similarity_name}" \
+               f"-{loss_func_name}-{rtime}"
 
     @classmethod
     def add_module_specific_args(cls, parent_parser):
         COCODatasetSystem.add_module_specific_args(parent_parser)
         parser = parent_parser.add_argument_group("COCOModel")
         parser.add_argument('--latent_dim', type=int, default=256)
-
         cls.image_model_cls.add_module_specific_args(parent_parser)
         cls.text_model_cls.add_module_specific_args(parent_parser)
+        cls.similarity_cls.add_module_specific_args(parent_parser)
         cls.loss_func_cls.add_module_specific_args(parent_parser)
-
         return parent_parser
 
     def get_image_transform(self):
@@ -63,8 +66,8 @@ class COCOSystem(COCODatasetSystem):
 
         self.img_model = self.image_model_cls(parser, out_dim=latent_dim)
         self.txt_model = self.text_model_cls(parser, out_dim=latent_dim)
-
-        self.loss = self.loss_func_cls(parser)
+        self.similarity = self.similarity_cls(parser)
+        self.loss = self.loss_func_cls(parser, self.similarity)
 
     def forward(self, img, text):
         img = self.img_model(img)
@@ -92,21 +95,65 @@ class COCOSystem(COCODatasetSystem):
 
     def validation_epoch_end(self, outputs):
         imgs, txts = zip(*outputs)
-        print("Initiating I2T ranking...")
         self._rank_i2t(imgs, txts)
-        print("Initiating T2I ranking...")
         self._rank_t2i(imgs, txts)
 
     def _rank_i2t(self, imgs, txts):
+        print("Initiating I2T ranking...")
         txt = torch.cat(txts, dim=0)
         txt = rearrange(txt, 'b g ... -> (b g) ...')
-        self.a
-        # TODO
+        acc = 0
+        res = [0, 0, 0]
+        for img in imgs:
+            sim = self.similarity(img, txt)
+            end = acc + img.shape[0]
+            ind_start = torch.arange(acc, end).unsqueeze_(1)
+            ind_end = ind_start + 5
+            acc = end
+            top1_ind = sim.topk(1, dim=1).indices
+            res[0] += self._rank_tensor(ind_start, top1_ind, ind_end)
+            top5_ind = sim.topk(5, dim=1).indices
+            res[1] += self._rank_tensor(ind_start, top5_ind, ind_end)
+            top10_ind = sim.topk(10, dim=1).indices
+            res[2] += self._rank_tensor(ind_start, top10_ind, ind_end)
+        self.log("i2t_top1", res[0] / acc)
+        self.log("i2t_top5", res[1] / acc)
+        self.log("i2t_top10", res[2] / acc)
+
+    @staticmethod
+    def _rank_tensor(ge, target, lt):
+        ge_res = ge <= target
+        lt_res = target < lt
+        # noinspection PyUnresolvedReferences
+        return ge_res.logical_and_(lt_res).sum().item()
 
     def _rank_t2i(self, imgs, txts):
+        print("Initiating T2I ranking...")
         img = torch.cat(imgs, dim=0)
-        self.a
-        # TODO
+        acc = 0
+        res = [0, 0, 0]
+        for txt in txts:
+            txt = rearrange(txt, 'b g ... -> (b g) ...')
+            sim = self.similarity(txt, img)
+            end = acc + txt.shape[0]
+            ind = torch.arange(acc, end) \
+                .div_(5, rounding_mode='trunc') \
+                .unsqueeze_(1)
+            acc = end
+            top1_ind = sim.topk(1, dim=1).indices
+            res[0] += self._eq_tensor(top1_ind, ind)
+            top5_ind = sim.topk(5, dim=1).indices
+            res[1] += self._eq_tensor(top5_ind, ind)
+            top10_ind = sim.topk(10, dim=1).indices
+            res[2] += self._eq_tensor(top10_ind, ind)
+        self.log("t2i_top1", res[0] / acc)
+        self.log("t2i_top5", res[1] / acc)
+        self.log("t2i_top10", res[2] / acc)
+
+    @staticmethod
+    def _eq_tensor(target, eq):
+        # noinspection PyUnresolvedReferences
+        return (target == eq).sum().item()
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adadelta(self.parameters())
