@@ -17,6 +17,7 @@ import time
 import einops
 import torch
 from einops import rearrange
+from tqdm import tqdm
 
 from src.datamodule import COCODatasetSystem
 from src.loss import ChamferTripletMinedLoss
@@ -99,12 +100,11 @@ class COCOSystem(COCODatasetSystem):
         self._rank_t2i(imgs, txts)
 
     def _rank_i2t(self, imgs, txts):
-        print("Initiating I2T ranking...")
         txt = torch.cat(txts, dim=0)
         txt = rearrange(txt, 'b g ... -> (b g) 1 ...')
         acc = 0
         res = [0, 0, 0]
-        for img in imgs:
+        for img in tqdm(imgs):
             sim = self.similarity(img, txt)
             end = acc + img.shape[0]
             ind_start = torch.arange(acc, end).unsqueeze_(1)
@@ -128,11 +128,10 @@ class COCOSystem(COCODatasetSystem):
         return ge_res.logical_and_(lt_res).sum().item()
 
     def _rank_t2i(self, imgs, txts):
-        print("Initiating T2I ranking...")
         img = torch.cat(imgs, dim=0)
         acc = 0
         res = [0, 0, 0]
-        for txt in txts:
+        for txt in tqdm(txts):
             txt = rearrange(txt, 'b g ... -> (b g) 1 ...')
             sim = self.similarity(txt, img)
             end = acc + txt.shape[0]
