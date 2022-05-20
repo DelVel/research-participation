@@ -101,7 +101,7 @@ class COCOSystem(COCODatasetSystem):
     def _rank_i2t(self, imgs, txts):
         print("Initiating I2T ranking...")
         txt = torch.cat(txts, dim=0)
-        txt = rearrange(txt, 'b g ... -> (b g) ...')
+        txt = rearrange(txt, 'b g ... -> (b g) 1 ...')
         acc = 0
         res = [0, 0, 0]
         for img in imgs:
@@ -133,7 +133,7 @@ class COCOSystem(COCODatasetSystem):
         acc = 0
         res = [0, 0, 0]
         for txt in txts:
-            txt = rearrange(txt, 'b g ... -> (b g) ...')
+            txt = rearrange(txt, 'b g ... -> (b g) 1 ...')
             sim = self.similarity(txt, img)
             end = acc + txt.shape[0]
             ind = torch.arange(acc, end) \
