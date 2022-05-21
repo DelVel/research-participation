@@ -93,7 +93,9 @@ class COCOSystem(COCODatasetSystem):
         img, text = self.forward(img, text)
         loss = self.loss(img, text)
         self.log("val_loss", loss)
-        return img.detach().cpu(), text.detach().cpu()
+        return img.detach().to(device='cpu',
+                               dtype=torch.float32), text.detach().to(
+            device='cpu', dtype=torch.float32)
 
     def validation_epoch_end(self, outputs):
         imgs, txts = zip(*outputs)
