@@ -12,6 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+import random
 import time
 
 import einops
@@ -20,7 +21,7 @@ from einops import rearrange
 from tqdm import tqdm
 
 from src.datamodule import COCODatasetSystem
-from src.loss import ChamferTripletMinedLoss
+from src.loss import TripletMinedLoss
 from src.model import ImageTrans, TextGRU
 from src.similarity import ChamferSimilarity
 
@@ -29,7 +30,7 @@ class COCOSystem(COCODatasetSystem):
     image_model_cls = ImageTrans
     text_model_cls = TextGRU
     similarity_cls = ChamferSimilarity
-    loss_func_cls = ChamferTripletMinedLoss
+    loss_func_cls = TripletMinedLoss
 
     @classmethod
     def get_run_name(cls):
@@ -101,14 +102,15 @@ class COCOSystem(COCODatasetSystem):
 
     def _rank_i2t(self, imgs, txts):
         txt = torch.cat(txts, dim=0)
+        g = txt.shape[1]
         txt = rearrange(txt, 'b g ... -> (b g) 1 ...')
         acc = 0
         res = [0, 0, 0]
-        for img in tqdm(imgs):
+        for img in tqdm(imgs, desc=f"i2t{random.randint(0, 100)}"):
             sim = self.similarity(img, txt)
             end = acc + img.shape[0]
             ind_start = torch.arange(acc, end).unsqueeze_(1)
-            ind_end = ind_start + 5
+            ind_end = ind_start + g
             acc = end
             top1_ind = sim.topk(1, dim=1).indices
             res[0] += self._rank_tensor(ind_start, top1_ind, ind_end)
@@ -125,18 +127,19 @@ class COCOSystem(COCODatasetSystem):
         ge_res = ge <= target
         lt_res = target < lt
         # noinspection PyUnresolvedReferences
-        return ge_res.logical_and_(lt_res).sum().item()
+        return ge_res.logical_and_(lt_res).any(dim=1).sum().item()
 
     def _rank_t2i(self, imgs, txts):
         img = torch.cat(imgs, dim=0)
         acc = 0
         res = [0, 0, 0]
-        for txt in tqdm(txts):
+        for txt in tqdm(txts, desc=f"t2i{random.randint(0, 100)}"):
+            g = txt.shape[1]
             txt = rearrange(txt, 'b g ... -> (b g) 1 ...')
             sim = self.similarity(txt, img)
             end = acc + txt.shape[0]
             ind = torch.arange(acc, end) \
-                .div_(5, rounding_mode='trunc') \
+                .div_(g, rounding_mode='trunc') \
                 .unsqueeze_(1)
             acc = end
             top1_ind = sim.topk(1, dim=1).indices
@@ -152,7 +155,7 @@ class COCOSystem(COCODatasetSystem):
     @staticmethod
     def _eq_tensor(target, eq):
         # noinspection PyUnresolvedReferences
-        return (target == eq).sum().item()
+        return (target == eq).any(dim=1).sum().item()
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adadelta(self.parameters())

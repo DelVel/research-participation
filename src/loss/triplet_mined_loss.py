@@ -19,7 +19,7 @@ from torch import nn
 from src.third_party import TripletMarginLoss, TripletMarginMiner
 
 
-class ChamferTripletMinedLoss(nn.Module):
+class TripletMinedLoss(nn.Module):
     @staticmethod
     def add_module_specific_args(parent_parser):
         parser = parent_parser.add_argument_group("ChamferTripletLoss")

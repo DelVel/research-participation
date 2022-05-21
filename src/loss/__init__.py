@@ -13,5 +13,5 @@
 #  limitations under the License.
 
 from .chamfer_triplet_loss import ChamferTripletLoss
-from .chamfer_triplet_mined_loss import ChamferTripletMinedLoss
+from .triplet_mined_loss import TripletMinedLoss
 from .loss import ContrastiveLoss
