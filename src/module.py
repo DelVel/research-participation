@@ -21,7 +21,7 @@ from einops import rearrange
 from tqdm import tqdm
 
 from src.datamodule import COCODatasetSystem
-from src.loss import TripletMinedLoss
+from src.loss import TripletLoss
 from src.model import ImageTrans, TextGRU
 from src.similarity import ChamferSimilarity
 
@@ -30,7 +30,7 @@ class COCOSystem(COCODatasetSystem):
     image_model_cls = ImageTrans
     text_model_cls = TextGRU
     similarity_cls = ChamferSimilarity
-    loss_func_cls = TripletMinedLoss
+    loss_func_cls = TripletLoss
 
     @classmethod
     def get_run_name(cls):
