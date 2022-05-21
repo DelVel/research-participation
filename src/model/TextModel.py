@@ -11,13 +11,10 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-
 import random
 
-import torch
 from einops import einops
 from torch import nn, Tensor
-from torch.nn.init import xavier_normal_
 from torch.nn.utils.rnn import pack_padded_sequence
 from torchvision.transforms import Lambda
 from transformers import BertTokenizer
@@ -64,12 +61,6 @@ class TextGRU(nn.Module):
             nn.ReLU(),
             nn.Linear(2048, out_dim)
         )
-
-    def _init_weight(self):
-        with torch.no_grad():
-            for p in self.parameters():
-                if p.dim() > 1:
-                    xavier_normal_(p)
 
     def forward(self, x: Tensor):
         # noinspection PyTypeChecker
