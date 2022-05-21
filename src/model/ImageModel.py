@@ -11,7 +11,6 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-import itertools
 
 import torch
 from einops import einops
@@ -76,10 +75,10 @@ class ImageTrans(nn.Module):
 
     def _init_weight(self):
         with torch.no_grad():
-            chain = itertools.chain(
+            chain = [
                 self.transformer_param,
                 self.positional,
-            )
+            ]
             for p in chain:
                 if p.dim() > 1:
                     xavier_normal_(p)
