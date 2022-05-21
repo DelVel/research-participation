@@ -36,8 +36,8 @@ class COCODatasetSystem(pl.LightningModule, metaclass=ABCMeta):
         parser = parent_parser.add_argument_group("COCODatasetSystem")
         parser.add_argument('--batch_size', type=int, default=32)
         parser.add_argument("--num_worker", type=int, default=4)
-        parser.add_argument("--persistent_workers", action="store_true")
-        parser.add_argument("--pin_memory", action="store_true")
+        parser.add_argument("--no_persistent_workers", action="store_false")
+        parser.add_argument("--no_pin_memory", action="store_false")
 
         return parent_parser
 
@@ -55,8 +55,8 @@ class COCODatasetSystem(pl.LightningModule, metaclass=ABCMeta):
             shuffle=shuffle,
             batch_size=parser.batch_size,
             num_workers=parser.num_worker,
-            persistent_workers=parser.persistent_workers,
-            pin_memory=parser.pin_memory
+            persistent_workers=parser.no_persistent_workers,
+            pin_memory=parser.no_pin_memory
         )
 
     def train_dataloader(self):

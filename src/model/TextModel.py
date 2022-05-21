@@ -32,10 +32,10 @@ class TextGRU(nn.Module):
     @staticmethod
     def add_module_specific_args(parent_parser):
         parser = parent_parser.add_argument_group("TextGRU Config")
-        parser.add_argument('--text_embed_dim', type=int, default=256)
-        parser.add_argument('--gru_hidden_dim', type=int, default=512)
-        parser.add_argument('--gru_num_layers', type=int, default=1)
-        parser.add_argument('--gru_dropout', type=float, default=0)
+        parser.add_argument('--text_embed_dim', type=int, default=512)
+        parser.add_argument('--gru_hidden_dim', type=int, default=1024)
+        parser.add_argument('--gru_num_layers', type=int, default=2)
+        parser.add_argument('--gru_dropout', type=float, default=0.1)
         return parent_parser
 
     def __init__(self, args, *, out_dim):

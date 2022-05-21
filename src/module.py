@@ -46,7 +46,7 @@ class COCOSystem(COCODatasetSystem):
     def add_module_specific_args(cls, parent_parser):
         COCODatasetSystem.add_module_specific_args(parent_parser)
         parser = parent_parser.add_argument_group("COCOModel")
-        parser.add_argument('--latent_dim', type=int, default=256)
+        parser.add_argument('--latent_dim', type=int, default=768)
         cls.image_model_cls.add_module_specific_args(parent_parser)
         cls.text_model_cls.add_module_specific_args(parent_parser)
         cls.similarity_cls.add_module_specific_args(parent_parser)

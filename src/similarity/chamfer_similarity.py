@@ -21,7 +21,7 @@ class ChamferSimilarity(BaseDistance):
     @classmethod
     def add_module_specific_args(cls, parent_parser):
         parser = parent_parser.add_argument_group("ChamferSimilarity")
-        parser.add_argument('--sim_temp', type=float, default=1.0)
+        parser.add_argument('--sim_temp', type=float, default=10.)
         return parent_parser
 
     def __init__(self, args):

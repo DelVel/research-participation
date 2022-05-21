@@ -32,8 +32,8 @@ class ImageTrans(nn.Module):
     def add_module_specific_args(parent_parser):
         parser = parent_parser.add_argument_group("ImageTrans Config")
         parser.add_argument('--no_pretrained_resnet', action='store_false')
-        parser.add_argument('--z_per_img', type=int, default=5)
-        parser.add_argument('--trans_dim', type=int, default=512)
+        parser.add_argument('--z_per_img', type=int, default=8)
+        parser.add_argument('--trans_dim', type=int, default=768)
         parser.add_argument('--nhead', type=int, default=8)
         parser.add_argument('--num_encoder_layers', type=int, default=8)
         parser.add_argument('--num_decoder_layers', type=int, default=8)
