@@ -68,7 +68,8 @@ class TextGRU(nn.Module):
     def _init_weight(self):
         with torch.no_grad():
             for p in self.parameters():
-                xavier_normal_(p)
+                if p.dim() > 1:
+                    xavier_normal_(p)
 
     def forward(self, x: Tensor):
         # noinspection PyTypeChecker
