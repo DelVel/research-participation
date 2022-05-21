@@ -114,12 +114,15 @@ class COCOSystem(COCODatasetSystem):
             ind_start = torch.arange(acc, end).unsqueeze_(1)
             ind_end = ind_start + g
             acc = end
-            top1_ind = sim.topk(1, dim=1).indices
-            res[0] += self._rank_tensor(ind_start, top1_ind, ind_end)
-            top5_ind = sim.topk(5, dim=1).indices
-            res[1] += self._rank_tensor(ind_start, top5_ind, ind_end)
-            top10_ind = sim.topk(10, dim=1).indices
+            topk = sim.topk(10, dim=1)
+            top10_ind = topk.indices
             res[2] += self._rank_tensor(ind_start, top10_ind, ind_end)
+            topk = topk.values.topk(5, dim=1)
+            top5_ind = topk.indices
+            res[1] += self._rank_tensor(ind_start, top5_ind, ind_end)
+            topk = topk.values.topk(1, dim=1)
+            top1_ind = topk.indices
+            res[0] += self._rank_tensor(ind_start, top1_ind, ind_end)
         self.log("i2t_top1", res[0] / acc)
         self.log("i2t_top5", res[1] / acc)
         self.log("i2t_top10", res[2] / acc)
@@ -144,12 +147,15 @@ class COCOSystem(COCODatasetSystem):
                 .div_(g, rounding_mode='trunc') \
                 .unsqueeze_(1)
             acc = end
-            top1_ind = sim.topk(1, dim=1).indices
-            res[0] += self._eq_tensor(top1_ind, ind)
-            top5_ind = sim.topk(5, dim=1).indices
-            res[1] += self._eq_tensor(top5_ind, ind)
-            top10_ind = sim.topk(10, dim=1).indices
+            topk = sim.topk(10, dim=1)
+            top10_ind = topk.indices
             res[2] += self._eq_tensor(top10_ind, ind)
+            topk = topk.values.topk(5, dim=1)
+            top5_ind = topk.indices
+            res[1] += self._eq_tensor(top5_ind, ind)
+            topk = topk.values.topk(1, dim=1)
+            top1_ind = topk.indices
+            res[0] += self._eq_tensor(top1_ind, ind)
         self.log("t2i_top1", res[0] / acc)
         self.log("t2i_top5", res[1] / acc)
         self.log("t2i_top10", res[2] / acc)
