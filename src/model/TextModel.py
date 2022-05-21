@@ -14,8 +14,10 @@
 
 import random
 
+import torch
 from einops import einops
 from torch import nn, Tensor
+from torch.nn.init import xavier_normal_
 from torch.nn.utils.rnn import pack_padded_sequence
 from torchvision.transforms import Lambda
 from transformers import BertTokenizer
@@ -63,7 +65,13 @@ class TextGRU(nn.Module):
             nn.Linear(2048, out_dim)
         )
 
+    def _init_weight(self):
+        with torch.no_grad():
+            for p in self.parameters():
+                xavier_normal_(p)
+
     def forward(self, x: Tensor):
+        # noinspection PyTypeChecker
         x = self._preprocess_sequence(x)
         x = self._pass_gru(x)
         x = self.linear_sequential(x)

@@ -15,6 +15,7 @@
 import torch
 from einops import einops
 from torch import nn
+from torch.nn.init import xavier_normal_
 from torchvision.models import resnet50
 from torchvision.transforms import Compose, RandomCrop, ToTensor
 
@@ -61,15 +62,21 @@ class ImageTrans(nn.Module):
             norm_first=args.norm_first
         )
         self.transformer_param = nn.Parameter(
-            torch.zeros(args.z_per_img, args.trans_dim))
+            torch.empty(args.z_per_img, args.trans_dim))
         self.positional = nn.Parameter(
-            torch.zeros((ImageTrans.seq_len, args.trans_dim))
+            torch.empty((ImageTrans.seq_len, args.trans_dim))
         )
         self.linear_sequential = nn.Sequential(
             nn.Linear(args.trans_dim, 2048),
             nn.ReLU(),
             nn.Linear(2048, out_dim)
         )
+        self._init_weight()
+
+    def _init_weight(self):
+        with torch.no_grad():
+            for p in self.parameters():
+                xavier_normal_(p)
 
     def forward(self, x):
         x = self._pass_resnet(x)
