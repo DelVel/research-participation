@@ -63,9 +63,12 @@ class TextGRU(nn.Module):
 
     def forward(self, x: Tensor):
         # noinspection PyTypeChecker
+        g_dim = x.shape[1]
+        x = einops.rearrange(x, 'b g l -> (b g) l')
         x = self._preprocess_sequence(x)
         x = self._pass_gru(x)
         x = self.linear_sequential(x)
+        x = einops.rearrange(x, '(b g) l -> b g l', g=g_dim)
         return x
 
     def _pass_gru(self, x):

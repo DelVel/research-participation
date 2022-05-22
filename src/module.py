@@ -15,20 +15,19 @@
 import random
 import time
 
-import einops
 import torch
 from einops import rearrange
 from tqdm import tqdm
 
 from src.datamodule import COCODatasetSystem
 from src.loss import TripletLoss
-from src.model import ImageTrans, TextGRU
+from src.model import ImageTrans, BERT
 from src.similarity import ChamferSimilarity
 
 
 class COCOSystem(COCODatasetSystem):
     image_model_cls = ImageTrans
-    text_model_cls = TextGRU
+    text_model_cls = BERT
     similarity_cls = ChamferSimilarity
     loss_func_cls = TripletLoss
 
@@ -73,15 +72,8 @@ class COCOSystem(COCODatasetSystem):
 
     def forward(self, img, text):
         img = self.img_model(img)
-        text = self._process_text(text)
-        return img, text
-
-    def _process_text(self, text):
-        g_dim = text.shape[1]
-        text = einops.rearrange(text, 'b g l -> (b g) l')
         text = self.txt_model(text)
-        text = einops.rearrange(text, '(b g) l -> b g l', g=g_dim)
-        return text
+        return img, text
 
     def training_step(self, batch, batch_idx):
         loss = self._loss_of_batch(batch)

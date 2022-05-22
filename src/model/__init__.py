@@ -14,3 +14,4 @@
 
 from .ImageModel import *
 from .TextModel import *
+from .bert import BERT
