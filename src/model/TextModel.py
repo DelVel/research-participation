@@ -11,7 +11,6 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-import random
 
 from einops import einops
 from torch import nn, Tensor
@@ -22,7 +21,7 @@ from transformers import BertTokenizer
 
 class TextGRU(nn.Module):
     def transform(self, x):
-        x = random.sample(x, 5)
+        x = [x[0]]
         x = self.tokenizer(x, padding='max_length', return_tensors='pt')
         return x['input_ids']
 

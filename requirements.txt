@@ -1,6 +1,7 @@
 tqdm
 wandb
 einops
+pycocotools
 transformers
 pytorch-lightning
 pytorch-metric-learning
