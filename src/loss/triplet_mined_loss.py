@@ -25,7 +25,7 @@ class TripletMinedLoss(TripletLoss):
         super().__init__(args, similarity)
         self.miner = TripletMarginMiner(distance=similarity,
                                         margin=self.margin,
-                                        type_of_triplets=args.mine_type)
+                                        type_of_triplets=args.loss_mine_type)
 
     def get_i2t_pair(self, img_emb, img_label, txt_emb, txt_label):
         return self.miner(img_emb, img_label, txt_emb, txt_label)
