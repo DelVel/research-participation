@@ -1,0 +1,3 @@
+<component name="DependencyValidationManager">
+  <scope name="yalesong/pvse" pattern="file[research-participation]:src/model/pienet//*" />
+</component>

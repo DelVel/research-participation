@@ -3,6 +3,8 @@
     <module2copyright>
       <element module="krasserm/perceiver-io" copyright="krasserm/perceiver-io" />
       <element module="KevinMusgrave/pytorch-metric-learning" copyright="KevinMusgrave/pytorch-metric-learning" />
+      <element module="gaussian37/pytorch_deep_learning_models" copyright="gaussian37/pytorch_deep_learning_models" />
+      <element module="yalesong/pvse" copyright="yalesong/pvse" />
       <element module="Taegyu-Park" copyright="Taegyu-Park" />
     </module2copyright>
   </settings>

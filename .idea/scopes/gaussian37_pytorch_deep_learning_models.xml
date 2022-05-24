@@ -1,0 +1,3 @@
+<component name="DependencyValidationManager">
+  <scope name="gaussian37/pytorch_deep_learning_models" pattern="file:src/functional/cosine_annealing_with_warmup.py" />
+</component>

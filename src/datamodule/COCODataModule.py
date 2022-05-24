@@ -15,6 +15,7 @@
 from abc import abstractmethod, ABCMeta
 
 import pytorch_lightning as pl
+import torch
 from torch.utils.data import DataLoader
 from torchvision.datasets import CocoCaptions
 
@@ -56,8 +57,15 @@ class COCODatasetSystem(pl.LightningModule, metaclass=ABCMeta):
             batch_size=parser.batch_size,
             num_workers=parser.num_worker,
             persistent_workers=parser.no_persistent_workers,
-            pin_memory=parser.no_pin_memory
+            pin_memory=parser.no_pin_memory,
+            collate_fn=self._collate_fn
         )
+
+    @staticmethod
+    def _collate_fn(batch):
+        img, txt = zip(*batch)
+        return torch.stack(img), txt
+
 
     def train_dataloader(self):
         return self.get_dataloader('train')

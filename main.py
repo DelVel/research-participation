@@ -15,6 +15,7 @@
 from argparse import ArgumentParser
 
 import pytorch_lightning as pl
+from pytorch_lightning import seed_everything
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.plugins import DDPPlugin
 
@@ -22,6 +23,7 @@ from src import COCOSystem
 
 
 def main():
+    seed_everything(42, workers=True)
     args = init_args()
     override = {}
     if args.strategy == 'ddp':
@@ -30,6 +32,7 @@ def main():
         wandb_logger = WandbLogger(project='coco-system',
                                    name=COCOSystem.get_run_name())
         override['logger'] = wandb_logger
+    override['deterministic'] = True
     trainer = pl.Trainer.from_argparse_args(args, **override)
     model = COCOSystem(args)
     trainer.fit(model)

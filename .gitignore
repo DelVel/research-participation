@@ -9,3 +9,4 @@ __pycache__/
 /testground.py
 
 dataset
+/.vector_cache/

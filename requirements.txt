@@ -8,3 +8,7 @@ pytorch-metric-learning
 torch # https://download.pytorch.org/whl/cu113
 torchaudio # https://download.pytorch.org/whl/cu113
 torchvision # https://download.pytorch.org/whl/cu113
+numpy
+dill
+nltk
+scipy
