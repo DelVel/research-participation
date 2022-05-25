@@ -13,6 +13,7 @@
 #  limitations under the License.
 
 from pytorch_metric_learning.distances import BaseDistance
+from torch.nn import functional as F
 
 from src.functional import smooth_chamfer_matching
 
@@ -25,12 +26,16 @@ class ChamferSimilarity(BaseDistance):
         return parent_parser
 
     def __init__(self, args):
-        super().__init__(is_inverted=True)
+        super().__init__(is_inverted=True, normalize_embeddings=False)
         self.temp = args.sim_temp
 
     def compute_mat(self, query_emb, ref_emb):
+        query_emb = F.normalize(query_emb, dim=-1, p=2)
+        ref_emb = F.normalize(ref_emb, dim=-1, p=2)
         return smooth_chamfer_matching(query_emb, ref_emb, self.temp)
 
     def pairwise_distance(self, query_emb, ref_emb):
+        query_emb = F.normalize(query_emb, dim=-1, p=2)
+        ref_emb = F.normalize(ref_emb, dim=-1, p=2)
         return smooth_chamfer_matching(query_emb, ref_emb,
                                        self.temp).diagonal()
