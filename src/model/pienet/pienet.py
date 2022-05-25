@@ -143,6 +143,7 @@ class PIEImage(nn.Module):
         out, attn, residual = self.pie_net(out, out_7x7.transpose(1, 2))
 
         out = F.normalize(out, p=2, dim=-1)
+        residual = F.normalize(residual, p=2, dim=-1)
         if self.num_embeds == 1:
             out = bt_to_b1t(out)
             residual = bt_to_b1t(residual)
@@ -228,6 +229,7 @@ class PIEText(nn.Module):
         wemb_out = self.dropout(wemb_out)
 
         # Forward propagate RNNs
+        lengths = lengths.cpu()
         packed = pack_padded_sequence(wemb_out, lengths, batch_first=True,
                                       enforce_sorted=False)
         if torch.cuda.device_count() > 1:
@@ -241,9 +243,11 @@ class PIEText(nn.Module):
         out = self.dropout(rnn_out)
 
         pad_mask = self._get_pad_mask(wemb_out.shape[1], lengths)
+        pad_mask = pad_mask.to(wemb_out.device)
         out, attn, residual = self.pie_net(out, wemb_out, pad_mask)
 
         out = F.normalize(out, p=2, dim=-1)
+        residual = F.normalize(residual, p=2, dim=-1)
         if self.num_embeds == 1:
             out = bt_to_b1t(out)
             residual = bt_to_b1t(residual)
@@ -275,6 +279,6 @@ class PIEText(nn.Module):
 
     @staticmethod
     def _get_pad_mask(max_length: int, lengths: Tensor):
-        ind = torch.arange(0, max_length, device=lengths.device).unsqueeze(0)
+        ind = torch.arange(0, max_length).unsqueeze(0)
         mask = (ind >= lengths.unsqueeze(1))
         return mask
