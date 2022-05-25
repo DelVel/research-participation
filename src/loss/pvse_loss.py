@@ -11,6 +11,7 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+import math
 
 import torch
 from einops import rearrange, repeat
@@ -45,7 +46,7 @@ class PVSELoss(nn.Module):
         return triplet_loss + div_loss + mmd_loss
 
 
-def simple_triplet_loss(sim: Tensor, t=5):
+def simple_triplet_loss(sim: Tensor, t=None):
     """
     Simple triplet loss with LSE policy & margin 0.1.
 
@@ -53,7 +54,10 @@ def simple_triplet_loss(sim: Tensor, t=5):
     :param sim: A tensor of [B x B] .
     :return: Triplet loss.
     """
-    mask = torch.eye(sim.shape[0], device=sim.device, dtype=torch.bool)
+    b = sim.shape[0]
+    if t is None:
+        t = 10 * math.log(b)
+    mask = torch.eye(b, device=sim.device, dtype=torch.bool)
     diagonal = sim.diag()
     i2t = (sim - rearrange(diagonal, 'b -> b 1') + 0.1).clamp(min=0)
     t2i = (sim - rearrange(diagonal, 'b -> 1 b') + 0.1).clamp(min=0)
