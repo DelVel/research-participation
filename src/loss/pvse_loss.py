@@ -30,6 +30,7 @@ class PVSELoss(nn.Module):
         self.similarity = similarity
         self.div_constant = 0.1
         self.mmd_constant = 0.01
+        self.dict = dict()
 
     def forward(self, x, y, xs, ys):
         img_res = xs[1]
@@ -39,4 +40,7 @@ class PVSELoss(nn.Module):
                 diversity_loss(img_res) + diversity_loss(txt_res))
         mmd_loss = self.mmd_constant * (
             mmd_rbf_loss(img_res, txt_res))
+        self.dict['triplet_loss'] = triplet_loss.item()
+        self.dict['div_loss'] = div_loss.item()
+        self.dict['mmd_loss'] = mmd_loss.item()
         return triplet_loss + div_loss + mmd_loss

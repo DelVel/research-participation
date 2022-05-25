@@ -12,4 +12,5 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+from .cosine_annealing_with_warmup import CosineAnnealingWarmUpRestarts
 from .functional import *

@@ -20,6 +20,7 @@ from einops import rearrange
 from tqdm import tqdm
 
 from src.datamodule import COCODatasetSystem
+from src.functional import CosineAnnealingWarmUpRestarts
 from src.loss import PVSELoss
 from src.model.pienet import PIEText, PIEImage
 from src.similarity import ChamferSimilarity
@@ -79,6 +80,9 @@ class COCOSystem(COCODatasetSystem):
     def training_step(self, batch, batch_idx):
         loss = self._loss_of_batch(batch)
         self.log("loss", loss)
+        self.log("triplet loss", self.loss.dict['triplet_loss'], prog_bar=True)
+        self.log("div loss", self.loss.dict['div_loss'], prog_bar=True)
+        self.log("mmd loss", self.loss.dict['mmd_loss'], prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -159,8 +163,10 @@ class COCOSystem(COCODatasetSystem):
         return (target == eq).any(dim=1).sum().item()
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adadelta(self.parameters())
-        return optimizer
+        optimizer = torch.optim.Adam(self.parameters(), lr=1e-10)
+        scheduler = CosineAnnealingWarmUpRestarts(
+            optimizer, t_0=50, t_mult=2, eta_max=0.1, t_up=10, gamma=0.5)
+        return [optimizer], [scheduler]
 
     def forward(self, img, text):
         img = self.img_model(img)
