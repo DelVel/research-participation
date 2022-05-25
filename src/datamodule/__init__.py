@@ -13,3 +13,4 @@
 #  limitations under the License.
 
 from .COCODataModule import COCODatasetSystem
+from .vocab import vocab

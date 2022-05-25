@@ -61,11 +61,9 @@ class COCODatasetSystem(pl.LightningModule, metaclass=ABCMeta):
             collate_fn=self._collate_fn
         )
 
-    @staticmethod
-    def _collate_fn(batch):
+    def _collate_fn(self, batch):
         img, txt = zip(*batch)
-        return torch.stack(img), txt
-
+        return self.get_image_collate(img), self.get_text_collate(txt)
 
     def train_dataloader(self):
         return self.get_dataloader('train')
@@ -86,6 +84,14 @@ class COCODatasetSystem(pl.LightningModule, metaclass=ABCMeta):
 
     @abstractmethod
     def get_text_transform(self):
+        pass
+
+    @abstractmethod
+    def get_image_collate(self, img):
+        pass
+
+    @abstractmethod
+    def get_text_collate(self, txt):
         pass
 
     @staticmethod

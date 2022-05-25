@@ -14,6 +14,7 @@
 
 import os
 from collections import Counter
+
 import dill
 import nltk
 from pycocotools.coco import COCO
@@ -38,7 +39,7 @@ class Vocabulary:
 
     def __call__(self, word):
         if word not in self.word2idx:
-            return self.word2idx[unk_token]
+            return self.word2idx['<unk>']
         return self.word2idx[word]
 
     def __len__(self):
@@ -62,10 +63,10 @@ def _build_vocab(json_list, threshold_):
 
     # Create a vocab wrapper and add some special tokens.
     vocab_ = Vocabulary()
-    vocab_.add_word(pad_token)
-    vocab_.add_word(start_token)
-    vocab_.add_word(end_token)
-    vocab_.add_word(unk_token)
+    vocab_.add_word('<pad>')
+    vocab_.add_word('<start>')
+    vocab_.add_word('<end>')
+    vocab_.add_word('<unk>')
 
     # Add the words to the vocabulary.
     for i, word in enumerate(words):
@@ -91,11 +92,6 @@ def _init_vocab():
     else:
         return _vocab_from_annotations()
 
-
-pad_token = '<pad>'
-start_token = '<start>'
-end_token = '<end>'
-unk_token = '<unk>'
 
 vocab_pkl_path = './data/vocab.pkl'
 vocab = _init_vocab()

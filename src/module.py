@@ -20,16 +20,16 @@ from einops import rearrange
 from tqdm import tqdm
 
 from src.datamodule import COCODatasetSystem
-from src.loss import TripletMinedLoss
-from src.model import ImageTrans, BERT
+from src.loss import PVSELoss
+from src.model.pienet import PIEText, PIEImage
 from src.similarity import ChamferSimilarity
 
 
 class COCOSystem(COCODatasetSystem):
-    image_model_cls = ImageTrans
-    text_model_cls = BERT
+    image_model_cls = PIEImage
+    text_model_cls = PIEText
     similarity_cls = ChamferSimilarity
-    loss_func_cls = TripletMinedLoss
+    loss_func_cls = PVSELoss
 
     @classmethod
     def get_run_name(cls):
@@ -58,6 +58,12 @@ class COCOSystem(COCODatasetSystem):
     def get_text_transform(self):
         return self.txt_model.get_transform()
 
+    def get_image_collate(self, img):
+        return self.img_model.get_collate(img)
+
+    def get_text_collate(self, txt):
+        return self.txt_model.get_collate(txt)
+
     # noinspection PyUnusedLocal
     def __init__(self, parser):
         super().__init__()
@@ -70,11 +76,6 @@ class COCOSystem(COCODatasetSystem):
         self.similarity = self.similarity_cls(parser)
         self.loss = self.loss_func_cls(parser, self.similarity)
 
-    def forward(self, img, text):
-        img = self.img_model(img)
-        text = self.txt_model(text)
-        return img, text
-
     def training_step(self, batch, batch_idx):
         loss = self._loss_of_batch(batch)
         self.log("loss", loss)
@@ -83,7 +84,7 @@ class COCOSystem(COCODatasetSystem):
     def validation_step(self, batch, batch_idx):
         img, text = batch
         img, text = self.forward(img, text)
-        loss = self.loss(img, text)
+        loss = self.loss(img, text, self.img_model.stash, self.txt_model.stash)
         self.log("val_loss", loss)
         return img.detach().to(device='cpu',
                                dtype=torch.float32), text.detach().to(
@@ -161,8 +162,13 @@ class COCOSystem(COCODatasetSystem):
         optimizer = torch.optim.Adadelta(self.parameters())
         return optimizer
 
+    def forward(self, img, text):
+        img = self.img_model(img)
+        text = self.txt_model(text)
+        return img, text
+
     def _loss_of_batch(self, batch):
         img, text = batch
         img, text = self.forward(img, text)
-        loss = self.loss(img, text)
+        loss = self.loss(img, text, self.img_model.stash, self.txt_model.stash)
         return loss

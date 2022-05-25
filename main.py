@@ -32,7 +32,6 @@ def main():
         wandb_logger = WandbLogger(project='coco-system',
                                    name=COCOSystem.get_run_name())
         override['logger'] = wandb_logger
-    override['deterministic'] = True
     trainer = pl.Trainer.from_argparse_args(args, **override)
     model = COCOSystem(args)
     trainer.fit(model)

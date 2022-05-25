@@ -12,3 +12,4 @@ numpy
 dill
 nltk
 scipy
+torchtext

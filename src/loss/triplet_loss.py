@@ -14,7 +14,7 @@
 
 import torch
 from einops import rearrange
-from torch import nn
+from torch import nn, Tensor
 
 from src.third_party import TripletMarginLoss
 
@@ -56,3 +56,21 @@ class TripletLoss(nn.Module):
 
     def get_t2i_pair(self, img_emb, img_label, txt_emb, txt_label):
         return None
+
+
+def simple_triplet_loss(sim: Tensor):
+    """
+    Simple triplet loss with max policy & margin 0.1.
+
+    :param sim: A tensor of [B x B] .
+    :return: Triplet loss.
+    """
+    mask = torch.eye(sim.shape[0], device=sim.device, dtype=torch.bool)
+    diagonal = sim.diag()
+    i2t = (sim - rearrange(diagonal, 'b -> b 1') + 0.1).clamp(min=0)
+    t2i = (sim - rearrange(diagonal, 'b -> 1 b') + 0.1).clamp(min=0)
+    i2t = i2t.masked_fill(mask, 0)
+    t2i = t2i.masked_fill(mask, 0)
+    i2t = i2t.max(dim=1)[0]
+    t2i = t2i.max(dim=0)[0]
+    return (i2t + t2i) / 2
