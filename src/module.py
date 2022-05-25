@@ -16,7 +16,6 @@ import random
 import time
 
 import torch
-from einops import rearrange
 from tqdm import tqdm
 
 from src.datamodule import COCODatasetSystem
@@ -96,53 +95,18 @@ class COCOSystem(COCODatasetSystem):
 
     def validation_epoch_end(self, outputs):
         imgs, txts = zip(*outputs)
-        self._rank_i2t(imgs, txts)
-        self._rank_t2i(imgs, txts)
+        self._rank(imgs, txts, 'i2t')
+        self._rank(txts, imgs, 't2i')
 
-    def _rank_i2t(self, imgs, txts):
-        txt = torch.cat(txts, dim=0)
-        g = txt.shape[1]
-        txt = rearrange(txt, 'b g ... -> (b g) 1 ...')
+    def _rank(self, mod1, mod2, mod1_to_mod2):
+        mod2 = torch.cat(mod2, dim=0)
         acc = 0
         res = [0, 0, 0]
-        for img in tqdm(imgs, desc=f"i2t{random.randint(0, 100)}"):
-            sim = self.similarity(img, txt)
-            end = acc + img.shape[0]
-            ind_start = torch.arange(acc, end).unsqueeze_(1)
-            ind_end = ind_start + g
-            acc = end
-            topk = sim.topk(10, dim=1)
-            top10_ind = topk.indices
-            res[2] += self._rank_tensor(ind_start, top10_ind, ind_end)
-            topk = topk.values.topk(5, dim=1)
-            top5_ind = topk.indices
-            res[1] += self._rank_tensor(ind_start, top5_ind, ind_end)
-            topk = topk.values.topk(1, dim=1)
-            top1_ind = topk.indices
-            res[0] += self._rank_tensor(ind_start, top1_ind, ind_end)
-        self.log("i2t_top1", res[0] / acc)
-        self.log("i2t_top5", res[1] / acc)
-        self.log("i2t_top10", res[2] / acc)
-
-    @staticmethod
-    def _rank_tensor(ge, target, lt):
-        ge_res = ge <= target
-        lt_res = target < lt
-        # noinspection PyUnresolvedReferences
-        return ge_res.logical_and_(lt_res).any(dim=1).sum().item()
-
-    def _rank_t2i(self, imgs, txts):
-        img = torch.cat(imgs, dim=0)
-        acc = 0
-        res = [0, 0, 0]
-        for txt in tqdm(txts, desc=f"t2i{random.randint(0, 100)}"):
-            g = txt.shape[1]
-            txt = rearrange(txt, 'b g ... -> (b g) 1 ...')
-            sim = self.similarity(txt, img)
-            end = acc + txt.shape[0]
-            ind = torch.arange(acc, end) \
-                .div_(g, rounding_mode='trunc') \
-                .unsqueeze_(1)
+        desc = f"{mod1_to_mod2}{random.randint(0, 100)}"
+        for mod1_ in tqdm(mod1, desc=desc):
+            sim = self.similarity(mod1_, mod2)
+            end = acc + mod1_.shape[0]
+            ind = torch.arange(acc, end).unsqueeze_(1)
             acc = end
             topk = sim.topk(10, dim=1)
             top10_ind = topk.indices
@@ -153,9 +117,9 @@ class COCOSystem(COCODatasetSystem):
             topk = topk.values.topk(1, dim=1)
             top1_ind = topk.indices
             res[0] += self._eq_tensor(top1_ind, ind)
-        self.log("t2i_top1", res[0] / acc)
-        self.log("t2i_top5", res[1] / acc)
-        self.log("t2i_top10", res[2] / acc)
+        self.log(f"{mod1_to_mod2}_top1", res[0] / acc)
+        self.log(f"{mod1_to_mod2}_top5", res[1] / acc)
+        self.log(f"{mod1_to_mod2}_top10", res[2] / acc)
 
     @staticmethod
     def _eq_tensor(target, eq):
