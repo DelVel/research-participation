@@ -12,11 +12,10 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-from torch import nn
-
-from src.loss.diversity import diversity_loss
-from src.loss.mmd_rbf_loss import mmd_rbf_loss
-from src.loss.triplet_loss import simple_triplet_loss
+import torch
+from einops import rearrange, repeat
+from torch import nn, Tensor
+from torch.nn import functional as F
 
 
 class PVSELoss(nn.Module):
@@ -35,12 +34,87 @@ class PVSELoss(nn.Module):
     def forward(self, x, y, xs, ys):
         img_res = xs[1]
         txt_res = ys[1]
-        triplet_loss = simple_triplet_loss(self.similarity(x, y)).mean()
+        triplet_loss = simple_triplet_loss(self.similarity(x, y))
         div_loss = self.div_constant * (
-                diversity_loss(img_res) + diversity_loss(txt_res))
+                diversity_loss(img_res) + diversity_loss(txt_res)) / 2
         mmd_loss = self.mmd_constant * (
             mmd_rbf_loss(img_res, txt_res))
         self.dict['triplet_loss'] = triplet_loss.item()
         self.dict['div_loss'] = div_loss.item()
         self.dict['mmd_loss'] = mmd_loss.item()
         return triplet_loss + div_loss + mmd_loss
+
+
+def simple_triplet_loss(sim: Tensor, t=5):
+    """
+    Simple triplet loss with LSE policy & margin 0.1.
+
+    :param t: Temperature.
+    :param sim: A tensor of [B x B] .
+    :return: Triplet loss.
+    """
+    mask = torch.eye(sim.shape[0], device=sim.device, dtype=torch.bool)
+    diagonal = sim.diag()
+    i2t = (sim - rearrange(diagonal, 'b -> b 1') + 0.1).clamp(min=0)
+    t2i = (sim - rearrange(diagonal, 'b -> 1 b') + 0.1).clamp(min=0)
+    i2t = i2t.masked_fill(mask, 0)
+    t2i = t2i.masked_fill(mask, 0)
+    i2t = (i2t * t).logsumexp(dim=1)[0] / t
+    t2i = (t2i * t).logsumexp(dim=0)[0] / t
+    return ((i2t + t2i) / 2).mean()
+
+
+def diversity_loss(x: Tensor) -> Tensor:
+    """
+    Measures diversity of the input.
+
+    :param x: A tensor of shape [B x S x D]
+    :return: A scalar tensor
+    """
+    assert x.dim() == 3
+    batch, seq_len, seq_dim = x.shape
+    x = F.normalize(x, dim=2)
+    x = torch.bmm(x, x.transpose(1, 2))
+    identity = torch.eye(seq_len, device=x.device, dtype=torch.bool)
+    identity = repeat(identity, '... -> b ...', b=batch)
+    x = x.masked_fill(identity, 0)
+    b_loss = x.norm(p=2, dim=(1, 2)) / (seq_len ** 2)
+    return b_loss.mean()
+
+
+def _rbf(x, y, gamma):
+    """
+    RBF kernel.
+
+    :param x: A tensor of shape [B x S x D]
+    :param y: A tensor of shape [B x S' x D]
+    :param gamma: RBF constant
+    :return: A tensor of shape [B x S x S']
+    """
+    assert x.dim() == 3
+    assert y.dim() == 3
+    assert x.shape[0] == y.shape[0]
+    assert x.shape[2] == y.shape[2]
+    cdist = torch.cdist(x, y)
+    return torch.exp(-gamma * cdist)
+
+
+def mmd_rbf_loss(x, y, gamma=0.5):
+    """
+    MMD with RBF kernel.
+
+    :param x: A tensor of shape [B x S x D]
+    :param y: A tensor of shape [B x S' x D]
+    :param gamma: RBF constant
+    :return: A scalar tensor
+    """
+    assert x.dim() == 3
+    assert y.dim() == 3
+    assert x.shape[0] == y.shape[0]
+    assert x.shape[2] == y.shape[2]
+    if gamma is None:
+        gamma = 1.0 / x.shape[-1]
+    x_kernel = _rbf(x, x, gamma).mean()
+    y_kernel = _rbf(y, y, gamma).mean()
+    xy_kernel = _rbf(x, y, gamma).mean()
+    return x_kernel + y_kernel - 2 * xy_kernel

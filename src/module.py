@@ -80,9 +80,9 @@ class COCOSystem(COCODatasetSystem):
     def training_step(self, batch, batch_idx):
         loss = self._loss_of_batch(batch)
         self.log("loss", loss)
-        self.log("triplet loss", self.loss.dict['triplet_loss'], prog_bar=True)
-        self.log("div loss", self.loss.dict['div_loss'], prog_bar=True)
-        self.log("mmd loss", self.loss.dict['mmd_loss'], prog_bar=True)
+        self.log("TL", self.loss.dict['triplet_loss'], prog_bar=True)
+        self.log("DL", self.loss.dict['div_loss'], prog_bar=True)
+        self.log("ML", self.loss.dict['mmd_loss'], prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):

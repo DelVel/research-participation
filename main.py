@@ -13,6 +13,7 @@
 #  limitations under the License.
 
 from argparse import ArgumentParser
+from multiprocessing import freeze_support
 
 import pytorch_lightning as pl
 from pytorch_lightning import seed_everything
