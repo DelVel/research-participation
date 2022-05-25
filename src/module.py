@@ -111,11 +111,9 @@ class COCOSystem(COCODatasetSystem):
             topk = sim.topk(10, dim=1)
             top10_ind = topk.indices
             res[2] += self._eq_tensor(top10_ind, ind)
-            topk = topk.values.topk(5, dim=1)
-            top5_ind = topk.indices
+            top5_ind = top10_ind[:, :5]
             res[1] += self._eq_tensor(top5_ind, ind)
-            topk = topk.values.topk(1, dim=1)
-            top1_ind = topk.indices
+            top1_ind = top5_ind[:, :1]
             res[0] += self._eq_tensor(top1_ind, ind)
         self.log(f"{mod1_to_mod2}_top1", res[0] / acc)
         self.log(f"{mod1_to_mod2}_top5", res[1] / acc)
