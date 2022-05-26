@@ -12,6 +12,7 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
+
 import nltk
 import numpy as np
 import torch
@@ -20,7 +21,7 @@ from einops import rearrange
 from torch import nn, Tensor
 from torch.nn import functional as F
 from torch.nn.utils.rnn import pack_padded_sequence
-from torchvision.models import resnet50
+from torchvision.models import resnet152
 from torchvision.transforms import Compose, Normalize, ToTensor, \
     RandomResizedCrop, RandomHorizontalFlip, Lambda
 
@@ -109,7 +110,7 @@ class PIEImage(nn.Module):
         self.use_attention = True
 
         # Backbone CNN
-        self.cnn = resnet50(pretrained=True)
+        self.cnn = resnet152(pretrained=True)
         cnn_dim = self.cnn_dim = self.cnn.fc.in_features
 
         self.avgpool = self.cnn.avgpool

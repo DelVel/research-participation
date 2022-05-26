@@ -127,7 +127,7 @@ class COCOSystem(COCODatasetSystem):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-10)
         scheduler = CosineAnnealingWarmUpRestarts(
-            optimizer, t_0=50, t_mult=2, eta_max=0.1, t_up=10, gamma=0.5)
+            optimizer, t_0=20, t_mult=2, eta_max=0.05, t_up=5, gamma=0.5)
         return [optimizer], [scheduler]
 
     def forward(self, img, text):
